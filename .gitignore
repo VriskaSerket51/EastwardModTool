@@ -1,5 +1,13 @@
 bin/
 obj/
-/packages/
+publish/
+.vs/
+.idea/
+*.user
+*.suo
+*.ewmod
+*.ewproject
+TestResults/
+packages/
 riderModule.iml
-/_ReSharper.Caches/
+_ReSharper.Caches/
