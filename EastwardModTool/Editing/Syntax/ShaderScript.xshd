@@ -1,0 +1,26 @@
+<SyntaxDefinition xmlns="http://icsharpcode.net/sharpdevelop/syntaxdefinition/2008" name="ShaderScript" extensions=".shader_script;.shader">
+    <Color name="Directive" foreground="#C586C0" />
+    <RuleSet>
+        <Span ruleSet="GLSL/" multiline="true">
+            <Begin color="Directive">\bsource[ \t]+(?:\x27[^\x27]+\x27|"[^"]+")[ \t]+\[\[</Begin>
+            <End color="Directive">\]\]</End>
+        </Span>
+        <Span ruleSet="GLSL/" multiline="true">
+            <Begin color="Directive">\bsource[ \t]+(?:\x27[^\x27]+\x27|"[^"]+")[ \t]+\[=\[</Begin>
+            <End color="Directive">\]=\]</End>
+        </Span>
+        <Span ruleSet="GLSL/" multiline="true">
+            <Begin color="Directive">\bsource[ \t]+(?:\x27[^\x27]+\x27|"[^"]+")[ \t]+\[==\[</Begin>
+            <End color="Directive">\]==\]</End>
+        </Span>
+        <Span ruleSet="GLSL/" multiline="true">
+            <Begin color="Directive">\bsource[ \t]+(?:\x27[^\x27]+\x27|"[^"]+")[ \t]+\[===\[</Begin>
+            <End color="Directive">\]===\]</End>
+        </Span>
+        <Span ruleSet="GLSL/" multiline="true">
+            <Begin color="Directive">\bsource[ \t]+(?:\x27[^\x27]+\x27|"[^"]+")[ \t]+\[====\[</Begin>
+            <End color="Directive">\]====\]</End>
+        </Span>
+        <Import ruleSet="Lua/" />
+    </RuleSet>
+</SyntaxDefinition>

@@ -51,7 +51,8 @@ public abstract class AssetDocument : INotifyPropertyChanged
         ImportAsset(ReadSource(path));
     }
 
-    internal Asset Baseline => Original;
+    public Asset Baseline => Original;
+    public string AssetType { get; internal set; } = "unknown";
     internal abstract object CurrentState
     {
         get;
@@ -60,7 +61,7 @@ public abstract class AssetDocument : INotifyPropertyChanged
     public abstract void Redo();
     public abstract void Reset();
 
-    public void ExportSource(string path)
+    public virtual void ExportSource(string path)
     {
         var asset = IsDirty ? Compile() : Original;
         switch (asset)

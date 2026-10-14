@@ -1,0 +1,94 @@
+<SyntaxDefinition xmlns="http://icsharpcode.net/sharpdevelop/syntaxdefinition/2008" name="Lua" extensions=".lua">
+    <Color name="Keyword" foreground="#C586C0" />
+    <RuleSet>
+        <Span color="Comment" multiline="true">
+            <Begin>--\[\[</Begin>
+            <End>\]\]</End>
+        </Span>
+        <Span color="Comment" multiline="true">
+            <Begin>--\[=\[</Begin>
+            <End>\]=\]</End>
+        </Span>
+        <Span color="Comment" multiline="true">
+            <Begin>--\[==\[</Begin>
+            <End>\]==\]</End>
+        </Span>
+        <Span color="Comment" multiline="true">
+            <Begin>--\[===\[</Begin>
+            <End>\]===\]</End>
+        </Span>
+        <Span color="Comment" multiline="true">
+            <Begin>--\[====\[</Begin>
+            <End>\]====\]</End>
+        </Span>
+        <Span color="Comment" multiline="false">
+            <Begin>--</Begin>
+            <End>$</End>
+        </Span>
+        <Span color="String" multiline="true">
+            <Begin>\[\[</Begin>
+            <End>\]\]</End>
+        </Span>
+        <Span color="String" multiline="true">
+            <Begin>\[=\[</Begin>
+            <End>\]=\]</End>
+        </Span>
+        <Span color="String" multiline="true">
+            <Begin>\[==\[</Begin>
+            <End>\]==\]</End>
+        </Span>
+        <Span color="String" multiline="true">
+            <Begin>\[===\[</Begin>
+            <End>\]===\]</End>
+        </Span>
+        <Span color="String" multiline="true">
+            <Begin>\[====\[</Begin>
+            <End>\]====\]</End>
+        </Span>
+        <Span color="String" multiline="false">
+            <Begin>"</Begin>
+            <End>"</End>
+            <RuleSet>
+                <Span color="Escape" begin="\\" end="." />
+            </RuleSet>
+        </Span>
+        <Span color="String" multiline="false">
+            <Begin>'</Begin>
+            <End>'</End>
+            <RuleSet>
+                <Span color="Escape" begin="\\" end="." />
+            </RuleSet>
+        </Span>
+        <Keywords color="Keyword">
+            <Word>and</Word>
+            <Word>break</Word>
+            <Word>do</Word>
+            <Word>else</Word>
+            <Word>elseif</Word>
+            <Word>end</Word>
+            <Word>false</Word>
+            <Word>for</Word>
+            <Word>function</Word>
+            <Word>goto</Word>
+            <Word>if</Word>
+            <Word>in</Word>
+            <Word>local</Word>
+            <Word>nil</Word>
+            <Word>not</Word>
+            <Word>or</Word>
+            <Word>repeat</Word>
+            <Word>return</Word>
+            <Word>then</Word>
+            <Word>true</Word>
+            <Word>until</Word>
+            <Word>while</Word>
+        </Keywords>
+        <Rule color="Number">(?&lt;![\w.])(?:0[xX][0-9a-fA-F]+(?:\.[0-9a-fA-F]*)?(?:[pP][+-]?\d+)?|-?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?)[uUlLfF]*\b</Rule>
+        <Rule color="Function">\b[A-Za-z_]\w*(?=[ \t]*\()</Rule>
+    </RuleSet>
+    <Color name="Function" foreground="#DCDCAA" />
+    <Color name="String" foreground="#CE9178" />
+    <Color name="Escape" foreground="#D7BA7D" />
+    <Color name="Comment" foreground="#80A86E" />
+    <Color name="Number" foreground="#B5CEA8" />
+</SyntaxDefinition>

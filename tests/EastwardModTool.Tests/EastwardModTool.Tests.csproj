@@ -6,6 +6,7 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
   <ItemGroup>
+    <None Include="fixtures/branch.ljc" CopyToOutputDirectory="PreserveNewest" />
     <PackageReference Include="Avalonia.Headless" Version="12.1.4" />
     <ProjectReference Include="../../EastwardModTool/EastwardModTool.csproj" />
   </ItemGroup>

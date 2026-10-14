@@ -1,0 +1,13 @@
+<SyntaxDefinition xmlns="http://icsharpcode.net/sharpdevelop/syntaxdefinition/2008" name="OBJ" extensions=".obj;.mtl">
+    <Color name="Keyword" foreground="#C586C0" />
+    <RuleSet>
+        <Span color="Comment" multiline="false">
+            <Begin>\#</Begin>
+            <End>$</End>
+        </Span>
+        <Rule color="Keyword">^[ \t]*(?:v|vt|vn|vp|f|l|o|g|s|usemtl|mtllib|newmtl|Ka|Kd|Ks|Ke|Ns|Ni|d|Tr|illum|map_Kd|map_Ks|map_Bump|bump)\b</Rule>
+        <Rule color="Number">(?&lt;![\w.])(?:0[xX][0-9a-fA-F]+(?:\.[0-9a-fA-F]*)?(?:[pP][+-]?\d+)?|-?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?)[uUlLfF]*\b</Rule>
+    </RuleSet>
+    <Color name="Comment" foreground="#80A86E" />
+    <Color name="Number" foreground="#B5CEA8" />
+</SyntaxDefinition>

@@ -1,0 +1,52 @@
+<SyntaxDefinition xmlns="http://icsharpcode.net/sharpdevelop/syntaxdefinition/2008" name="SQ" extensions=".sq">
+    <Color name="Keyword" foreground="#C586C0" />
+    <RuleSet>
+        <Span color="Comment" multiline="false">
+            <Begin>//</Begin>
+            <End>$</End>
+            <RuleSet>
+                <Rule color="Directive">\$[A-Za-z_][\w.]*</Rule>
+            </RuleSet>
+        </Span>
+        <Span color="String" multiline="false">
+            <Begin>"</Begin>
+            <End>"</End>
+            <RuleSet>
+                <Span color="Escape" begin="\\" end="." />
+            </RuleSet>
+        </Span>
+        <Span color="String" multiline="false">
+            <Begin>'</Begin>
+            <End>'</End>
+            <RuleSet>
+                <Span color="Escape" begin="\\" end="." />
+            </RuleSet>
+        </Span>
+        <Rule color="Label">![A-Za-z_][\w.]*</Rule>
+        <Rule color="Context">@[A-Za-z_][\w.,]*</Rule>
+        <Rule color="Tag">\#[A-Za-z_][\w.]*</Rule>
+        <Rule color="Directive">\$[A-Za-z_][\w.]*</Rule>
+        <Keywords color="Keyword">
+            <Word>if</Word>
+            <Word>elseif</Word>
+            <Word>else</Word>
+            <Word>switch</Word>
+            <Word>case</Word>
+            <Word>default</Word>
+            <Word>true</Word>
+            <Word>false</Word>
+            <Word>nil</Word>
+        </Keywords>
+        <Rule color="Function">^[ \t]*(?!if\b|elseif\b|else\b|switch\b|case\b|default\b)\.?[A-Za-z_][\w.]*</Rule>
+        <Rule color="Number">(?&lt;![\w.])(?:0[xX][0-9a-fA-F]+(?:\.[0-9a-fA-F]*)?(?:[pP][+-]?\d+)?|-?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?)[uUlLfF]*\b</Rule>
+    </RuleSet>
+    <Color name="Function" foreground="#DCDCAA" />
+    <Color name="String" foreground="#CE9178" />
+    <Color name="Escape" foreground="#D7BA7D" />
+    <Color name="Comment" foreground="#80A86E" />
+    <Color name="Number" foreground="#B5CEA8" />
+    <Color name="Directive" foreground="#C586C0" />
+    <Color name="Label" foreground="#DCDCAA" />
+    <Color name="Context" foreground="#4EC9B0" />
+    <Color name="Tag" foreground="#D7BA7D" />
+</SyntaxDefinition>

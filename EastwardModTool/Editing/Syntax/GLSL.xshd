@@ -1,0 +1,123 @@
+<SyntaxDefinition xmlns="http://icsharpcode.net/sharpdevelop/syntaxdefinition/2008" name="GLSL" extensions=".glsl;.vert;.frag;.geom;.tesc;.tese;.comp">
+    <Color name="Keyword" foreground="#C586C0" />
+    <Color name="Type" foreground="#4EC9B0" />
+    <Color name="Function" foreground="#DCDCAA" />
+    <Color name="String" foreground="#CE9178" />
+    <Color name="Escape" foreground="#D7BA7D" />
+    <Color name="Comment" foreground="#80A86E" />
+    <Color name="Number" foreground="#B5CEA8" />
+    <RuleSet>
+        <Rule color="Directive">@(?:in|out|block|sampler)\b</Rule>
+        <Span color="Comment" multiline="false">
+            <Begin>//</Begin>
+            <End>$</End>
+        </Span>
+        <Span color="Comment" multiline="true">
+            <Begin>/\*</Begin>
+            <End>\*/</End>
+        </Span>
+        <Span color="String" multiline="false">
+            <Begin>"</Begin>
+            <End>"</End>
+            <RuleSet>
+                <Span color="Escape" begin="\\" end="." />
+            </RuleSet>
+        </Span>
+        <Span color="String" multiline="false">
+            <Begin>'</Begin>
+            <End>'</End>
+            <RuleSet>
+                <Span color="Escape" begin="\\" end="." />
+            </RuleSet>
+        </Span>
+        <Rule color="Directive">^[ \t]*\#\s*[A-Za-z_]\w*</Rule>
+        <Keywords color="Keyword">
+            <Word>attribute</Word>
+            <Word>uniform</Word>
+            <Word>varying</Word>
+            <Word>layout</Word>
+            <Word>centroid</Word>
+            <Word>flat</Word>
+            <Word>smooth</Word>
+            <Word>noperspective</Word>
+            <Word>patch</Word>
+            <Word>sample</Word>
+            <Word>invariant</Word>
+            <Word>precise</Word>
+            <Word>const</Word>
+            <Word>in</Word>
+            <Word>out</Word>
+            <Word>inout</Word>
+            <Word>break</Word>
+            <Word>continue</Word>
+            <Word>do</Word>
+            <Word>for</Word>
+            <Word>while</Word>
+            <Word>switch</Word>
+            <Word>case</Word>
+            <Word>default</Word>
+            <Word>if</Word>
+            <Word>else</Word>
+            <Word>return</Word>
+            <Word>discard</Word>
+            <Word>struct</Word>
+            <Word>lowp</Word>
+            <Word>mediump</Word>
+            <Word>highp</Word>
+            <Word>precision</Word>
+            <Word>LOWP</Word>
+            <Word>MEDP</Word>
+            <Word>HIGHP</Word>
+        </Keywords>
+        <Keywords color="Type">
+            <Word>void</Word>
+            <Word>bool</Word>
+            <Word>int</Word>
+            <Word>uint</Word>
+            <Word>float</Word>
+            <Word>double</Word>
+            <Word>bvec2</Word>
+            <Word>bvec3</Word>
+            <Word>bvec4</Word>
+            <Word>ivec2</Word>
+            <Word>ivec3</Word>
+            <Word>ivec4</Word>
+            <Word>uvec2</Word>
+            <Word>uvec3</Word>
+            <Word>uvec4</Word>
+            <Word>vec2</Word>
+            <Word>vec3</Word>
+            <Word>vec4</Word>
+            <Word>dvec2</Word>
+            <Word>dvec3</Word>
+            <Word>dvec4</Word>
+            <Word>mat2</Word>
+            <Word>mat3</Word>
+            <Word>mat4</Word>
+            <Word>mat2x2</Word>
+            <Word>mat2x3</Word>
+            <Word>mat2x4</Word>
+            <Word>mat3x2</Word>
+            <Word>mat3x3</Word>
+            <Word>mat3x4</Word>
+            <Word>mat4x2</Word>
+            <Word>mat4x3</Word>
+            <Word>mat4x4</Word>
+            <Word>sampler1D</Word>
+            <Word>sampler2D</Word>
+            <Word>sampler3D</Word>
+            <Word>samplerCube</Word>
+            <Word>sampler2DArray</Word>
+            <Word>sampler2DShadow</Word>
+            <Word>samplerCubeShadow</Word>
+            <Word>isampler2D</Word>
+            <Word>usampler2D</Word>
+            <Word>image2D</Word>
+            <Word>true</Word>
+            <Word>false</Word>
+        </Keywords>
+        <Rule color="Number">(?&lt;![\w.])(?:0[xX][0-9a-fA-F]+(?:\.[0-9a-fA-F]*)?(?:[pP][+-]?\d+)?|-?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?)[uUlLfF]*\b</Rule>
+        <Rule color="Function">\b[A-Za-z_]\w*(?=[ \t]*\()</Rule>
+    </RuleSet>
+    <Color name="Directive" foreground="#C586C0" />
+</SyntaxDefinition>

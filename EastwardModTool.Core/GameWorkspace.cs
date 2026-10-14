@@ -13,7 +13,7 @@ public sealed class GameWorkspace : IDisposable
 {
     private readonly AssetManager _manager;
     private readonly Dictionary<string, AssetDocument> _documents = new(StringComparer.Ordinal);
-    private readonly NativeLuaDecompiler? _decompiler;
+    private readonly NativeLuaDecompiler _decompiler;
     private Dictionary<string, object> _savedStates = new(StringComparer.Ordinal);
     public string GameDirectory
     {
@@ -37,11 +37,8 @@ public sealed class GameWorkspace : IDisposable
     {
         _manager = manager;
         GameDirectory = Path.GetFullPath(gameDirectory);
-        if (decompilerPath != null)
-        {
-            _decompiler = new NativeLuaDecompiler(decompilerPath);
-            _manager.LuaDecompiler = _decompiler.Decompile;
-        }
+        _decompiler = new NativeLuaDecompiler(decompilerPath);
+        _manager.LuaDecompiler ??= _decompiler.Decompile;
     }
 
     public static GameWorkspace Open(string directory, string? overlay = null, string? decompilerPath = null)
@@ -85,21 +82,30 @@ public sealed class GameWorkspace : IDisposable
                 "@texture_index" => _manager.Textures.Data,
                 _ => throw new ArgumentException("Unknown metadata document", nameof(name))
             };
-            document = new MetadataDocument(name, new JsonAsset(data.DeepClone()));
+            document = new MetadataDocument(name, new JsonAsset(data.DeepClone())) { AssetType = "metadata" };
             document.PropertyChanged += DocumentChanged;
             _documents.Add(name, document);
             return document;
         }
         var info = _manager.Assets[name];
-        var original = _manager.LoadAsset(name) ?? throw new InvalidDataException("Missing asset: " + name);
-        var editable = AssetCompiler.Supports(info.Type);
-        document = original switch
+        Asset? original = null;
+        try
         {
-            MSpriteAsset => new ResourceDocument(name, original, editable),
-            LuaAsset lua when lua.IsBytecode && _manager.LuaDecompiler == null => new ResourceDocument(name, original, editable),
-            TextAsset or JsonAsset or LuaAsset => new TextDocument(name, original, editable),
-            _ => new ResourceDocument(name, original, editable)
-        };
+            original = _manager.LoadAsset(name) ?? throw new InvalidDataException("Missing asset: " + name);
+            var editable = AssetCompiler.Supports(info.Type);
+            document = original switch
+            {
+                MSpriteAsset or DeckAsset or SpriteSequenceAsset or LegacyDeckAsset or LegacyDeckPackAsset or NamedTilesetAsset or BitmapFontAsset or MultiTextureAsset => new ResourceDocument(name, original, editable),
+                LuaAsset lua when lua.IsBytecode && _manager.LuaDecompiler == null => new ResourceDocument(name, original, editable),
+                TextAsset or JsonAsset or LuaAsset => new TextDocument(name, original, editable),
+                _ => new ResourceDocument(name, original, editable)
+            };
+        }
+        catch (Exception error) when (error is IOException or InvalidDataException or NotSupportedException or System.Text.Json.JsonException or KeyNotFoundException)
+        {
+            document = original is LuaAsset lua ? new ResourceDocument(name, lua, AssetCompiler.Supports(info.Type)) { PreviewWarning = error.Message } : new UnavailableDocument(name, error.Message);
+        }
+        document.AssetType = info.Type;
         document.PropertyChanged += DocumentChanged;
         _documents.Add(name, document);
         return document;

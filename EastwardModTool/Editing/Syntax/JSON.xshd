@@ -1,0 +1,31 @@
+<SyntaxDefinition xmlns="http://icsharpcode.net/sharpdevelop/syntaxdefinition/2008" name="JSON" extensions=".json">
+    <Color name="Keyword" foreground="#C586C0" />
+    <RuleSet>
+        <Span color="FieldName" multiline="false">
+            <Begin>"(?=(?:\\.|[^"\\])*"\s*:)</Begin>
+            <End>"</End>
+            <RuleSet>
+                <Span color="Escape" begin="\\" end="." />
+            </RuleSet>
+        </Span>
+        <Span color="String" multiline="false">
+            <Begin>"</Begin>
+            <End>"</End>
+            <RuleSet>
+                <Span color="Escape" begin="\\" end="." />
+            </RuleSet>
+        </Span>
+        <Keywords color="Keyword">
+            <Word>true</Word>
+            <Word>false</Word>
+            <Word>null</Word>
+        </Keywords>
+        <Rule color="Number">-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?</Rule>
+        <Rule color="Punctuation">[{}\[\],:]</Rule>
+    </RuleSet>
+    <Color name="String" foreground="#CE9178" />
+    <Color name="Escape" foreground="#D7BA7D" />
+    <Color name="Number" foreground="#B5CEA8" />
+    <Color name="FieldName" foreground="#9CDCFE" />
+    <Color name="Punctuation" foreground="#D4D4D4" />
+</SyntaxDefinition>

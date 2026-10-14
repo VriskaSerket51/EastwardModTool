@@ -1,0 +1,33 @@
+<SyntaxDefinition xmlns="http://icsharpcode.net/sharpdevelop/syntaxdefinition/2008" name="XML" extensions=".xml;.ml;.graphml;.assxml;.xshd;.xaml">
+    <RuleSet>
+        <Span color="Comment" multiline="true">
+            <Begin>&lt;!--</Begin>
+            <End>--&gt;</End>
+        </Span>
+        <Span color="String" multiline="true">
+            <Begin>&lt;!\[CDATA\[</Begin>
+            <End>\]\]&gt;</End>
+        </Span>
+        <Span color="Type" multiline="true">
+            <Begin>&lt;(?=[\w!?/])</Begin>
+            <End>&gt;</End>
+            <RuleSet>
+                <Span color="String" multiline="true">
+                    <Begin>"</Begin>
+                    <End>"</End>
+                </Span>
+                <Span color="String" multiline="true">
+                    <Begin>'</Begin>
+                    <End>'</End>
+                </Span>
+                <Rule color="FieldName">[\w:.-]+(?=\s*=)</Rule>
+            </RuleSet>
+        </Span>
+        <Rule color="Escape">&amp;(?:\#x[0-9A-Fa-f]+|\#\d+|[\w]+);</Rule>
+    </RuleSet>
+    <Color name="Type" foreground="#4EC9B0" />
+    <Color name="String" foreground="#CE9178" />
+    <Color name="Escape" foreground="#D7BA7D" />
+    <Color name="Comment" foreground="#80A86E" />
+    <Color name="FieldName" foreground="#9CDCFE" />
+</SyntaxDefinition>

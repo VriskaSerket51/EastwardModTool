@@ -1,5 +1,4 @@
 using System.Text;
-using System.Text.Json;
 using System.Text.Json.Nodes;
 using EastwardLib.Assets;
 
@@ -48,7 +47,7 @@ public class TextDocument : EditableDocument<string>
             GraphAsset graph => graph.GetGraphMl(),
             LuaAsset lua => lua.GetSource(),
             TextAsset text => text.Text,
-            JsonAsset json => json.Data?.ToJsonString(new JsonSerializerOptions { WriteIndented = true }) ?? "null",
+            JsonAsset json => json.ToJson(),
             _ => throw new NotSupportedException("This asset does not expose text source")
         };
     }

@@ -1,10 +1,12 @@
 using System.ComponentModel;
 using System.Text.Json;
+using System.Text.Encodings.Web;
 using Avalonia;
 using Avalonia.Controls;
-using Avalonia.Controls.Templates;
 using Avalonia.Layout;
 using Avalonia.Media;
+using Avalonia.Input;
+using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
 using EastwardLib.Assets;
 using EastwardLib.MetaData;
@@ -17,16 +19,17 @@ namespace EastwardModTool.Views;
 public sealed class MainWindow : Window
 {
     private readonly Grid _work = new();
-    private readonly ListBox _assets = new();
-    private readonly TextBox _search = new() { PlaceholderText = "Search assets…" };
-    private readonly ComboBox _type = new() { MinWidth = 140 };
+    private readonly AssetBrowserView _assets = new();
     private readonly TextBlock _title = new() { FontSize = 18, FontWeight = FontWeight.SemiBold, Text = "Open an Eastward installation" };
     private readonly TextBlock _status = new() { Text = "Ready", Margin = new Thickness(16, 8) };
-    private readonly TextBlock _count = new() { Margin = new Thickness(8), Foreground = Brushes.Gray };
     private readonly TextBox _metadata = new() { IsReadOnly = true, AcceptsReturn = true, FontSize = 12, TextWrapping = TextWrapping.Wrap, BorderThickness = new Thickness(0) };
     private readonly AssetEditorView _editor = new();
-    private readonly Button _undo;
-    private readonly Button _redo;
+    private readonly DocumentTabsView _tabs = new();
+    private DocumentSession? _session;
+    private readonly AdaptiveWorkspaceView _layout;
+    private readonly List<(MenuItem Item, Func<bool> Available)> _commands = [];
+    private readonly Menu _menu;
+    private readonly MenuItem _pinned = new() { Header = "Pinned assets" };
     private readonly string? _decompilerPath;
     private GameWorkspace? _workspace;
     private AssetDocument? _document;
@@ -38,48 +41,13 @@ public sealed class MainWindow : Window
         Title = "EastwardModTool";
         Width = 1400;
         Height = 860;
-        MinWidth = 980;
-        MinHeight = 600;
+        MinWidth = 560;
+        MinHeight = 480;
         WindowStartupLocation = WindowStartupLocation.CenterScreen;
         _decompilerPath = Option(args, "--decompiler");
-        _undo = Button("Undo", () => { _document?.Undo(); return Task.CompletedTask; });
-        _redo = Button("Redo", () => { _document?.Redo(); return Task.CompletedTask; });
-        var toolbar = new StackPanel
-        {
-            Orientation = Orientation.Horizontal,
-            Spacing = 8,
-            Margin = new Thickness(16, 12),
-            Children =
-            {
-                Button("Open game", OpenGame), Button("Open project", OpenProject), Button("Save project", SaveProject), Button("Export mod", ExportMod), Button("Build archives", BuildArchives), Button("Apply mod", ApplyMod), _undo, _redo
-            }
-        };
-        var sidebar = new DockPanel { Margin = new Thickness(12) };
-        var filters = new StackPanel { Spacing = 8, Children = { _search, _type, _count } };
-        DockPanel.SetDock(filters, Dock.Top);
-        sidebar.Children.Add(filters);
-        sidebar.Children.Add(_assets);
-        _assets.ItemTemplate = new FuncDataTemplate<AssetInfo>((info, _) => info == null ? new Control() : new StackPanel
-        {
-            Margin = new Thickness(4, 5),
-            Children =
-            {
-                new TextBlock { Text = info!.Name, FontWeight = FontWeight.Medium, TextTrimming = TextTrimming.CharacterEllipsis },
-                new TextBlock { Text = info.AssetName, FontSize = 11, Foreground = Brushes.Gray, TextTrimming = TextTrimming.CharacterEllipsis },
-                new TextBlock { Text = info.Type, FontSize = 11, Foreground = Brush.Parse("#78B9B1") }
-            }
-        });
+        _menu = CreateMenu();
         var editorPanel = new DockPanel();
-        var heading = new StackPanel { Margin = new Thickness(16), Spacing = 12, Children = { _title } };
-        heading.Children.Add(new StackPanel
-        {
-            Orientation = Orientation.Horizontal,
-            Spacing = 8,
-            Children =
-            {
-                Button("Import file", () => ImportSource(false)), Button("Import folder", () => ImportSource(true)), Button("Export source", ExportSource), Button("Revert", () => { _document?.Reset(); return Task.CompletedTask; })
-            }
-        });
+        var heading = new StackPanel { Margin = new Thickness(16), Spacing = 12, Children = { _tabs, _title } };
         DockPanel.SetDock(heading, Dock.Top);
         editorPanel.Children.Add(heading);
         editorPanel.Children.Add(_editor);
@@ -88,60 +56,34 @@ public sealed class MainWindow : Window
         DockPanel.SetDock(label, Dock.Top);
         inspector.Children.Add(label);
         inspector.Children.Add(_metadata);
-        var metadataActions = new StackPanel
-        {
-            Orientation = Orientation.Horizontal,
-            Spacing = 4,
-            Children =
-            {
-                Button("Index", () => EditMetadata("@asset_index")),
-                Button("Scripts", () => EditMetadata("@script_library")),
-                Button("Textures", () => EditMetadata("@texture_index"))
-            }
-        };
-        DockPanel.SetDock(metadataActions, Dock.Top);
-        inspector.Children.Insert(1, metadataActions);
-        var content = new Grid { ColumnDefinitions = new ColumnDefinitions("320,4,*,4,280") };
-        Add(content, sidebar, 0);
-        Add(content, new GridSplitter { ResizeDirection = GridResizeDirection.Columns }, 1);
-        Add(content, editorPanel, 2);
-        Add(content, new GridSplitter { ResizeDirection = GridResizeDirection.Columns }, 3);
-        Add(content, inspector, 4);
+        _title.TextWrapping = TextWrapping.Wrap;
+        _title.MaxLines = 2;
+        _status.TextWrapping = TextWrapping.Wrap;
+        _status.MaxLines = 2;
+        _layout = new AdaptiveWorkspaceView(_assets, editorPanel, inspector);
         _work.RowDefinitions = new RowDefinitions("Auto,*");
-        _work.Children.Add(toolbar);
-        Grid.SetRow(content, 1);
-        _work.Children.Add(content);
+        _work.Children.Add(_menu);
+        Grid.SetRow(_layout, 1);
+        _work.Children.Add(_layout);
         var root = new DockPanel();
         DockPanel.SetDock(_status, Dock.Bottom);
         root.Children.Add(_status);
         root.Children.Add(_work);
         Content = root;
-        _search.TextChanged += (_, _) => FilterAssets();
-        _type.SelectionChanged += (_, _) => FilterAssets();
         _assets.SelectionChanged += async (_, _) =>
         {
-            if (_assets.SelectedItem is AssetInfo info && !_busy)
+            if (_assets.SelectedAsset is AssetInfo info && !_busy && _document?.Name != info.AssetName)
             {
                 await Run(async () =>
                 {
                     var document = await Task.Run(() => _workspace!.OpenAsset(info.AssetName));
-                    if (_document != null)
-                    {
-                        _document.PropertyChanged -= DocumentChanged;
-                    }
-
-                    _document = document;
-                    document.PropertyChanged += DocumentChanged;
-                    _title.Text = info.AssetName;
-                    _metadata.Text = info.Data.ToJsonString(new JsonSerializerOptions { WriteIndented = true });
-                    _editor.ShowDocument(document);
-                    UpdateState();
-                    _status.Text = document.CanEdit ? "Edit the source, then export a mod or build archives." : "Virtual asset · edit its parent source package.";
+                    _session!.Open(document);
                 });
             }
         };
         Closing += OnClosing;
-        Closed += (_, _) => { _editor.Dispose(); _workspace?.Dispose(); };
+        AddHandler(InputElement.KeyDownEvent, OnShortcut, RoutingStrategies.Tunnel);
+        Closed += (_, _) => { _tabs.SetSession(null); _session?.Dispose(); _editor.Dispose(); _workspace?.Dispose(); };
         UpdateState();
         var game = Option(args, "--game");
         if (game != null)
@@ -156,17 +98,188 @@ public sealed class MainWindow : Window
         return index >= 0 && index + 1 < args.Length ? args[index + 1] : null;
     }
 
-    private static void Add(Grid grid, Control child, int column)
+    private Menu CreateMenu()
     {
-        Grid.SetColumn(child, column);
-        grid.Children.Add(child);
+        var modifier = OperatingSystem.IsMacOS() ? "Meta" : "Ctrl";
+        bool Workspace() => _workspace != null;
+        bool Document() => _document != null;
+        bool Editable() => _document?.CanEdit == true;
+        bool Changes() => _workspace?.HasChanges == true;
+        Task Action(Action action)
+        {
+            action();
+            return Task.CompletedTask;
+        }
+        var file = new MenuItem
+        {
+            Header = "_File",
+            Items =
+        {
+            Command("Open game…", OpenGame, gesture: modifier + "+O"),
+            Command("Open project…", OpenProject, gesture: modifier + "+Shift+O"),
+            Command("Save project", SaveProject, Workspace, modifier + "+S"),
+            new Separator(),
+            Command("Close tab", () => Action(() => _session?.Close(_document!.Name)), Document, modifier + "+W"),
+            Command("Reopen closed tab", () => Action(() => _session?.Reopen()), () => _session?.CanReopen == true, modifier + "+Shift+T", "ReopenDocument")
+        }
+        };
+        var exit = new MenuItem { Header = "Exit" };
+        exit.Click += (_, _) => Close();
+        file.Items.Add(new Separator());
+        file.Items.Add(exit);
+        var edit = new MenuItem
+        {
+            Header = "_Edit",
+            Items =
+        {
+            Command("Undo", () => Action(() => _document?.Undo()), () => _document?.CanUndo == true, modifier + "+Z"),
+            Command("Redo", () => Action(() => _document?.Redo()), () => _document?.CanRedo == true, modifier + (OperatingSystem.IsMacOS() ? "+Shift+Z" : "+Y")),
+            Command("Revert asset", () => Action(() => _document?.Reset()), () => _document?.IsDirty == true),
+            new Separator(),
+            Command("Find…", () => Action(() => FindText(false)), Document, modifier + "+F"),
+            Command("Replace…", () => Action(() => FindText(true)), Editable, OperatingSystem.IsMacOS() ? "Meta+Alt+F" : "Ctrl+H")
+        }
+        };
+        var asset = new MenuItem
+        {
+            Header = "_Asset",
+            Items =
+        {
+            Command("Import file…", () => ImportSource(false), Editable),
+            Command("Import folder…", () => ImportSource(true), Editable),
+            Command("Export source…", ExportSource, () => _document != null && _document is not UnavailableDocument),
+            new Separator(),
+            new MenuItem { Header = "Global metadata", Items =
+            {
+                Command("Asset index", () => EditMetadata("@asset_index"), Workspace, name: "EditAssetIndex"),
+                Command("Script library", () => EditMetadata("@script_library"), Workspace),
+                Command("Texture index", () => EditMetadata("@texture_index"), Workspace)
+            } }
+        }
+        };
+        var mod = new MenuItem
+        {
+            Header = "_Mod",
+            Items =
+        {
+            Command("Export mod…", ExportMod, Changes),
+            Command("Build archives…", BuildArchives, Changes),
+            Command("Apply mod…", ApplyMod, Workspace)
+        }
+        };
+        var view = new MenuItem
+        {
+            Header = "_View",
+            Items =
+        {
+            Command("Back", () => Action(() => _session?.GoBack()), () => _session?.CanGoBack == true, "Alt+Left", "NavigateBack"),
+            Command("Forward", () => Action(() => _session?.GoForward()), () => _session?.CanGoForward == true, "Alt+Right", "NavigateForward"),
+            Command("Pin / unpin asset", () => Action(() => _session?.TogglePin(_document!.Name)), Document, name: "PinDocument"),
+            _pinned,
+            new Separator(),
+            Command("Search assets", () => Action(() => { _layout.ShowAssets(); _assets.FocusSearch(); }), Workspace, modifier + "+L"),
+            Command("Gii directories", () => Action(() => _assets.SetBrowseMode(EastwardModTool.Core.Navigation.AssetBrowseMode.Directories)), Workspace),
+            Command("Asset types", () => Action(() => _assets.SetBrowseMode(EastwardModTool.Core.Navigation.AssetBrowseMode.Types)), Workspace)
+        }
+        };
+        return new Menu { Name = "MainMenu", Items = { file, edit, asset, mod, view } };
     }
 
-    private Button Button(string text, Func<Task> action)
+    private MenuItem Command(string text, Func<Task> action, Func<bool>? available = null, string? gesture = null, string? name = null)
     {
-        var button = new Button { Content = text, Padding = new Thickness(12, 7) };
-        button.Click += async (_, _) => await Run(action);
-        return button;
+        var item = new MenuItem { Header = text, Name = name, InputGesture = gesture == null ? null : KeyGesture.Parse(gesture) };
+        item.Click += async (_, _) => await Run(action);
+        _commands.Add((item, available ?? (() => true)));
+        return item;
+    }
+
+    private void FindText(bool replace)
+    {
+        _layout.ShowEditor();
+        if (!_editor.Find(replace))
+        {
+            _layout.ShowAssets();
+            _assets.FocusSearch();
+        }
+    }
+
+    private async void OnShortcut(object? sender, KeyEventArgs args)
+    {
+        if (_busy)
+        {
+            return;
+        }
+        if (args.KeyModifiers == KeyModifiers.Alt && args.Key is Key.Left or Key.Right)
+        {
+            if (args.Key == Key.Left)
+            {
+                _session?.GoBack();
+            }
+            else
+            {
+                _session?.GoForward();
+            }
+
+            args.Handled = true;
+            return;
+        }
+        if ((args.KeyModifiers & (KeyModifiers.Control | KeyModifiers.Meta)) == 0)
+        {
+            return;
+        }
+
+        if (args.Key == Key.W)
+        {
+            if (_document != null)
+            {
+                _session?.Close(_document.Name);
+            }
+
+            args.Handled = true;
+            return;
+        }
+        if (args.Key == Key.T && args.KeyModifiers.HasFlag(KeyModifiers.Shift))
+        {
+            _session?.Reopen();
+            args.Handled = true;
+            return;
+        }
+        if (args.Key is Key.F or Key.H)
+        {
+            if (OperatingSystem.IsMacOS() && args.Key == Key.H && args.KeyModifiers.HasFlag(KeyModifiers.Meta))
+            {
+                return;
+            }
+
+            _layout.ShowEditor();
+            if (!_editor.Find(args.Key == Key.H || args.KeyModifiers.HasFlag(KeyModifiers.Alt)))
+            {
+                _layout.ShowAssets();
+                _assets.FocusSearch();
+            }
+            args.Handled = true;
+            return;
+        }
+        if (args.Key == Key.L)
+        {
+            _layout.ShowAssets();
+            _assets.FocusSearch();
+            args.Handled = true;
+            return;
+        }
+        Func<Task>? action = args.Key switch
+        {
+            Key.S => SaveProject,
+            Key.O => args.KeyModifiers.HasFlag(KeyModifiers.Shift) ? OpenProject : OpenGame,
+            _ => null
+        };
+        if (action == null)
+        {
+            return;
+        }
+
+        args.Handled = true;
+        await Run(action);
     }
 
     private async Task Run(Func<Task> action)
@@ -177,11 +290,16 @@ public sealed class MainWindow : Window
         }
 
         _busy = true;
-        _work.IsEnabled = false;
         _status.Text = "Working…";
         try
         {
-            await action();
+            var operation = action();
+            if (!operation.IsCompleted)
+            {
+                _work.IsEnabled = false;
+            }
+
+            await operation;
         }
         catch (Exception error) { _status.Text = error.Message; System.Diagnostics.Trace.WriteLine(error); }
         finally { _busy = false; _work.IsEnabled = true; UpdateState(); }
@@ -236,7 +354,9 @@ public sealed class MainWindow : Window
             _document.PropertyChanged -= DocumentChanged;
         }
 
-        _editor.Dispose();
+        _tabs.SetSession(null);
+        _session?.Dispose();
+        _editor.Clear();
         if (_workspace != null)
         {
             _workspace.Changed -= WorkspaceChanged;
@@ -244,12 +364,15 @@ public sealed class MainWindow : Window
 
         _workspace?.Dispose();
         _workspace = workspace;
+        _session = new DocumentSession();
+        _session.SelectionChanged += (_, _) => ShowSelectedDocument();
+        _session.Changed += (_, _) => UpdateState();
+        _tabs.SetSession(_session);
         _document = null;
         workspace.Changed += WorkspaceChanged;
-        _type.ItemsSource = new[] { "All types" }.Concat(workspace.Assets.Values.Select(info => info.Type).Distinct().Order(StringComparer.Ordinal)).ToArray();
-        _type.SelectedIndex = 0;
-        FilterAssets();
+        _assets.SetAssets(workspace.Assets);
         _title.Text = "Select an asset";
+        _layout.ShowAssets();
         _metadata.Text = "";
         _status.Text = $"{workspace.Assets.Count:N0} indexed assets · archives load on demand";
     }
@@ -284,20 +407,46 @@ public sealed class MainWindow : Window
             throw new InvalidOperationException("Open the game first");
         }
 
-        var document = _workspace.OpenAsset(name);
+        _session!.Open(_workspace.OpenAsset(name));
+        return Task.CompletedTask;
+    }
+
+    private void ShowSelectedDocument()
+    {
         if (_document != null)
         {
             _document.PropertyChanged -= DocumentChanged;
         }
 
-        _document = document;
-        document.PropertyChanged += DocumentChanged;
-        _title.Text = name.TrimStart('@');
-        _metadata.Text = "Global metadata source";
-        _editor.ShowDocument(document);
+        _document = _session?.SelectedDocument;
+        if (_document == null)
+        {
+            _editor.Dispose();
+            _layout.ShowAssets();
+            _assets.FocusSearch();
+            _title.Text = "Select an asset";
+            _metadata.Text = "";
+            _status.Text = "Tabs closed · editing drafts stay in the project.";
+        }
+        else
+        {
+            _document.PropertyChanged += DocumentChanged;
+            _title.Text = _document.Name.TrimStart('@');
+            if (_workspace!.Assets.TryGetValue(_document.Name, out var info))
+            {
+                _assets.SelectAsset(info.AssetName);
+                _metadata.Text = info.Data.ToJsonString(new JsonSerializerOptions { WriteIndented = true, Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping });
+            }
+            else
+            {
+                _metadata.Text = "Global metadata source";
+            }
+
+            _editor.ShowDocument(_document);
+            _layout.ShowEditor();
+            _status.Text = _document is MetadataDocument ? "Metadata changes are validated when you build a mod." : _document.CanEdit ? "Edit the source, then export a mod or build archives." : _document is UnavailableDocument ? "Preview unavailable · see the resource notice." : "Read-only preview · use the parent package to edit virtual assets.";
+        }
         UpdateState();
-        _status.Text = "Metadata changes are validated when you build a mod.";
-        return Task.CompletedTask;
     }
 
     private async Task SaveProject()
@@ -317,20 +466,6 @@ public sealed class MainWindow : Window
         _status.Text = "Saved " + path;
     }
 
-    private void FilterAssets()
-    {
-        if (_workspace == null)
-        {
-            return;
-        }
-
-        var search = _search.Text ?? "";
-        var type = _type.SelectedItem as string;
-        var values = _workspace.Assets.Values.Where(info => info.Type != "folder" && (type == null || type == "All types" || info.Type == type) && info.AssetName.Contains(search, StringComparison.OrdinalIgnoreCase)).OrderBy(info => info.AssetName, StringComparer.Ordinal).ToArray();
-        _assets.ItemsSource = values;
-        _count.Text = $"{values.Length:N0} assets";
-    }
-
     private void DocumentChanged(object? sender, PropertyChangedEventArgs args)
     {
         if (args.PropertyName is nameof(AssetDocument.IsDirty) or nameof(AssetDocument.CanUndo) or nameof(AssetDocument.CanRedo))
@@ -341,8 +476,23 @@ public sealed class MainWindow : Window
 
     private void UpdateState()
     {
-        _undo.IsEnabled = _document?.CanUndo == true;
-        _redo.IsEnabled = _document?.CanRedo == true;
+        foreach (var (item, available) in _commands)
+        {
+            item.IsEnabled = !_busy && available();
+        }
+
+        var pinned = _session?.PinnedNames.ToArray() ?? [];
+        if (!_pinned.Items.OfType<MenuItem>().Select(item => (string)item.Header!).SequenceEqual(pinned))
+        {
+            _pinned.Items.Clear();
+            foreach (var name in pinned)
+            {
+                var item = new MenuItem { Header = name };
+                item.Click += async (_, _) => await Run(() => { _session!.Select(name); return Task.CompletedTask; });
+                _pinned.Items.Add(item);
+            }
+        }
+        _pinned.IsEnabled = !_busy && pinned.Length > 0;
         Title = "EastwardModTool" + (_workspace?.IsModified == true ? " • Unsaved changes" : "");
     }
 
