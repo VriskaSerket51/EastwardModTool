@@ -32,28 +32,7 @@ internal static class AssetPresentationFactory
 
         if (document.AssetType == "scene")
         {
-            var groups = new Dictionary<string, JsonNode?>();
-            if (asset is SceneAsset scene)
-            {
-                groups.Add("Scene configuration", scene.Index);
-                foreach (var (name, data) in scene.Groups)
-                {
-                    groups.Add(name, data);
-                }
-            }
-            else if (asset is PackageAsset package)
-            {
-                foreach (var (name, item) in package.Items.Where(pair => pair.Value is JsonAsset))
-                {
-                    groups[name] = ((JsonAsset)item).Data;
-                }
-            }
-            else if (asset is JsonAsset json)
-            {
-                groups.Add("Scene", json.Data);
-            }
-
-            return new SceneHierarchyView(groups);
+            return new SceneHierarchyView(document);
         }
         if (asset is LocalePackAsset locale)
         {

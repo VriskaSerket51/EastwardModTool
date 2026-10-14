@@ -1,12 +1,16 @@
 using EastwardLib.Assets;
 using EastwardLib.Utils;
+using System.Text.Json.Nodes;
 
 namespace EastwardModTool.Core.Documents;
 
 public sealed class ResourceDocument : EditableDocument<Asset>
 {
     public Asset Current => State;
-    public string? PreviewWarning { get; internal set; }
+    public string? PreviewWarning
+    {
+        get; internal set;
+    }
     public bool CanAnimate => State is MSpriteAsset or SpriteSequenceAsset;
     public IReadOnlyList<string> Entries => State switch
     {
@@ -37,6 +41,40 @@ public sealed class ResourceDocument : EditableDocument<Asset>
         Change(asset);
     }
 
+    public IReadOnlyDictionary<string, JsonNode?> SceneData => State switch
+    {
+        PackageAsset package when package.Items.Count > 0 => package.Items.Where(pair => pair.Value is JsonAsset).ToDictionary(pair => pair.Key, pair => ((JsonAsset)pair.Value).Data, StringComparer.Ordinal),
+        SceneAsset scene => new Dictionary<string, JsonNode?> { ["Scene"] = scene.Index },
+        JsonAsset json => new Dictionary<string, JsonNode?> { ["Scene"] = json.Data },
+        _ => new Dictionary<string, JsonNode?>()
+    };
+
+    public void ReplaceSceneData(string name, JsonNode? data)
+    {
+        RequireEditable();
+        if (!SceneData.TryGetValue(name, out var previous))
+        {
+            throw new InvalidOperationException("Scene group was removed: " + name);
+        }
+
+        if (JsonNode.DeepEquals(previous, data))
+        {
+            return;
+        }
+
+        var replacement = new JsonAsset(data?.DeepClone());
+        if (State is PackageAsset package && package.Items.Count > 0)
+        {
+            var items = package.Items.ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.Ordinal);
+            items[name] = replacement;
+            Change(new PackageAsset(items));
+        }
+        else
+        {
+            Change(replacement);
+        }
+    }
+
     public RgbaImage? GetImage(string? entry = null, int frame = 0, string? channel = null)
     {
         if (AssetType == "lut_texture" && State is BinaryAsset bytes)
@@ -44,18 +82,35 @@ public sealed class ResourceDocument : EditableDocument<Asset>
             try
             {
                 var data = bytes.Encode();
-                if (data.AsSpan().StartsWith("PGF"u8)) return Asset.Create<HmgAsset>(data).Image;
-                using var stream = new MemoryStream(data); return RgbaImage.Load(stream);
+                if (data.AsSpan().StartsWith("PGF"u8))
+                {
+                    return Asset.Create<HmgAsset>(data).Image;
+                }
+
+                using var stream = new MemoryStream(data);
+                return RgbaImage.Load(stream);
             }
             catch (Exception error) when (error is InvalidDataException or InvalidOperationException or ArgumentException) { return null; }
         }
-        if (State is LegacyDeckAsset legacy) return legacy.Render(entry);
-        if (State is LegacyDeckPackAsset legacyPack) return legacyPack.GetDeck(entry ?? legacyPack.DeckNames[0]).Render(null);
-        if (State is NamedTilesetAsset tiles) return tiles.Render(entry);
+        if (State is LegacyDeckAsset legacy)
+        {
+            return legacy.Render(entry);
+        }
+
+        if (State is LegacyDeckPackAsset legacyPack)
+        {
+            return legacyPack.GetDeck(entry ?? legacyPack.DeckNames[0]).Render(null);
+        }
+
+        if (State is NamedTilesetAsset tiles)
+        {
+            return tiles.Render(entry);
+        }
+
         if (State is TilesetPackAsset tileset)
         {
             var theme = ((JsonAsset)tileset.Items["tileset.json"]).Data!["themes"]!.AsArray().FirstOrDefault(theme => entry == null || theme!["name"]!.ToString() == entry);
-            return theme == null ? null : new NamedTilesetAsset(theme,((HmgAsset)tileset.Items["atlas.png"]).Image!).Render(null);
+            return theme == null ? null : new NamedTilesetAsset(theme, ((HmgAsset)tileset.Items["atlas.png"]).Image!).Render(null);
         }
         if (State is DeckAsset deck)
         {
@@ -92,15 +147,31 @@ public sealed class ResourceDocument : EditableDocument<Asset>
 
     public AssetDocument OpenItem(string name)
     {
-        if (State is MultiTextureAsset multi) return new ResourceDocument(Name+"/"+name,new HmgAsset(multi.GetImage(name) ?? throw new InvalidDataException("Missing multi-texture image")),false);
-        if (State is TexturePackAsset textures) return new ResourceDocument(Name + "/" + name,new HmgAsset(textures.Textures[name]),false);
-        if (State is LegacyDeckPackAsset legacy) return new ResourceDocument(Name + "/" + name,legacy.GetDeck(name),false);
+        if (State is MultiTextureAsset multi)
+        {
+            return new ResourceDocument(Name + "/" + name, new HmgAsset(multi.GetImage(name) ?? throw new InvalidDataException("Missing multi-texture image")), false);
+        }
+
+        if (State is TexturePackAsset textures)
+        {
+            return new ResourceDocument(Name + "/" + name, new HmgAsset(textures.Textures[name]), false);
+        }
+
+        if (State is LegacyDeckPackAsset legacy)
+        {
+            return new ResourceDocument(Name + "/" + name, legacy.GetDeck(name), false);
+        }
+
         if (State is TilesetPackAsset tiles)
         {
             var theme = ((JsonAsset)tiles.Items["tileset.json"]).Data!["themes"]!.AsArray().First(theme => theme!["name"]!.ToString() == name)!;
-            return new ResourceDocument(Name + "/" + name,new NamedTilesetAsset(theme,((HmgAsset)tiles.Items["atlas.png"]).Image!),false);
+            return new ResourceDocument(Name + "/" + name, new NamedTilesetAsset(theme, ((HmgAsset)tiles.Items["atlas.png"]).Image!), false);
         }
-        if (State is not PackageAsset package) throw new InvalidOperationException("Open a package first");
+        if (State is not PackageAsset package)
+        {
+            throw new InvalidOperationException("Open a package first");
+        }
+
         var asset = package.Items[name];
         if (asset is BinaryAsset binary && Path.GetExtension(name).ToLowerInvariant() is ".png" or ".jpg" or ".jpeg")
         {

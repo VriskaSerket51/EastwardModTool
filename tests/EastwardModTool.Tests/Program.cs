@@ -18,6 +18,12 @@ using EastwardModTool.Core.Navigation;
 using EastwardModTool.Core.Documents;
 using EastwardModTool.Views;
 
+if (args.Length >= 3 && args[0] == "--language-images")
+{
+    LanguageImages(args[1], args[2]);
+    return;
+}
+
 if (args.Length >= 3 && args[0] == "--views")
 {
     AppBuilder.Configure<App>().UseSkia().UseHeadless(new AvaloniaHeadlessPlatformOptions { UseHeadlessDrawing = false }).SetupWithoutStarting();
@@ -248,6 +254,8 @@ try
     Console.WriteLine("PASS document edits, undo/redo, project drafts/baselines, metadata preservation, mesh reimport, mod application, sprite pixels and stream ownership");
 
     AppBuilder.Configure<App>().UseSkia().UseHeadless(new AvaloniaHeadlessPlatformOptions { UseHeadlessDrawing = false }).SetupWithoutStarting();
+    StyleViewer(root);
+    EngineObjects(root);
     var window = new MainWindow(["--game", root]);
     window.Show();
     Wait(window, () => window.GetVisualDescendants().OfType<AssetBrowserView>().Single().Browser.MatchingCount > 0);
@@ -601,6 +609,129 @@ finally
     Directory.Delete(root, true);
 }
 
+static void EngineObjects(string directory)
+{
+    var scalarGraph = new SerializedObjectGraph(JsonNode.Parse("""{"map":{"layer":{"model":false,"body":"main"},"alias":{"alias":"layer"}}}"""));
+    Check(scalarGraph.Label("layer") == "main · value" && scalarGraph.Label("alias").Contains("layer"), "Serializer primitive objects or aliases lost their meaning");
+    var manager = Fixture(directory);
+    using var workspace = new GameWorkspace(manager, directory);
+    var scene = (ResourceDocument)workspace.OpenAsset("objects.scene");
+    var baseline = scene.SceneData["default.scene_group"]!.DeepClone();
+    var editor = new AssetEditorView();
+    editor.ShowDocument(scene);
+    var window = new Window { Content = editor, Width = 900, Height = 750 };
+    window.Show();
+    Wait(window, () => window.GetVisualDescendants().OfType<TreeView>().Any(tree => tree.Name == "SceneHierarchy" && tree.Items.Count > 0));
+    var hierarchy = window.GetVisualDescendants().OfType<TreeView>().Single(tree => tree.Name == "SceneHierarchy");
+    var hero = (SceneHierarchyView.Entity)hierarchy.Items[0]!;
+    Check(hero.Label.Contains("Hero") && hero.Children.Any(child => child.Label.Contains("(reference)")), "Scene names or cyclic hierarchy reference protection failed");
+    hierarchy.SelectedItem = hero.Children.Single(child => child.Id == "component");
+    Check(window.GetVisualDescendants().OfType<TextBlock>().Single(block => block.Name == "ObjectLocation").Text!.Contains("component"), "Scene component selection lost object ID");
+    var tree = window.GetVisualDescendants().OfType<TreeView>().Single(tree => tree.Name == "DataTree");
+    tree.SelectedItem = ((JsonDataView.Node)tree.Items[0]!).Children.Single(node => node.Path.Last() == "material");
+    window.GetVisualDescendants().OfType<Button>().Single(button => button.Name == "OpenObjectReference").RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Button.ClickEvent));
+    Check(window.GetVisualDescendants().OfType<TextBlock>().Single(block => block.Name == "ObjectLocation").Text!.Contains("PhysicsMaterial"), "Scene component inspector lost group-wide reference map");
+    tree.SelectedItem = ((JsonDataView.Node)tree.Items[0]!).Children.Single(node => node.Path.Last() == "friction");
+    window.GetVisualDescendants().OfType<TextBox>().Single(box => box.Name == "PropertyValue").Text = "0.8";
+    window.GetVisualDescendants().OfType<Button>().Single(button => button.Name == "ApplyProperty").RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Button.ClickEvent));
+    Wait(window, () => window.GetVisualDescendants().OfType<TextBlock>().Any(block => block.Name == "ObjectLocation" && block.Text!.Contains("PhysicsMaterial")));
+    Check(scene.IsDirty && scene.SceneData["default.scene_group"]!["map"]!["material"]!["body"]!["friction"]!.GetValue<double>() == 0.8 && baseline["map"]!["material"]!["body"]!["friction"]!.GetValue<double>() == 0.5, "Scene property edit did not update parent or mutated baseline");
+    Check(JsonNode.DeepEquals(((SceneAsset)scene.Baseline).Groups["default.scene_group"], baseline), "Scene editor changed original asset data");
+    var resources = new AssetCompiler(manager).Compile(scene.Name, scene.Compile());
+    Check(resources.ContainsKey("fixture/scene/default.scene_group") && resources.ContainsKey("fixture/scene-bin/default.scene_group.packed") && resources["fixture/scene/preserved.bin"].SequenceEqual(new byte[] { 1, 2, 3 }), "Scene group edit did not compile source, packed resource and preserved package data");
+    scene.Undo();
+    Check(!scene.IsDirty && JsonNode.DeepEquals(scene.SceneData["default.scene_group"], baseline), "Scene parent undo did not restore group");
+    var view = window.GetVisualDescendants().OfType<SceneHierarchyView>().Single();
+    view.GetVisualDescendants().OfType<TabControl>().Single().SelectedIndex = 1;
+    Wait(window, () => window.GetVisualDescendants().OfType<TextEditor>().Any(text => text.Name == "SceneGroupSource"));
+    var source = window.GetVisualDescendants().OfType<TextEditor>().Single(text => text.Name == "SceneGroupSource");
+    source.Text = "{";
+    window.GetVisualDescendants().OfType<Button>().Single(button => button.Name == "ApplySceneSource").RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Button.ClickEvent));
+    Check(!scene.IsDirty, "Invalid scene group Source changed the package");
+    source.Text = new JsonAsset(baseline).ToJson().Replace("Hero", "Changed hero");
+    window.GetVisualDescendants().OfType<Button>().Single(button => button.Name == "ApplySceneSource").RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Button.ClickEvent));
+    Check(scene.IsDirty && scene.SceneData["default.scene_group"]!["map"]!["hero"]!["body"]!["name"]!.ToString() == "Changed hero", "Scene group Source did not reach parent document");
+    scene.Undo();
+    window.Width = 450;
+    Wait(window, () => view.Bounds.Width < 620);
+    Check(view.GetVisualDescendants().OfType<Grid>().Any(grid => grid.RowDefinitions.Count == 2), "Narrow scene viewer did not stack hierarchy and inspector");
+    var prefab = (TextDocument)workspace.OpenAsset("objects.prefab");
+    editor.ShowDocument(prefab);
+    Wait(window, () => editor.GetVisualDescendants().OfType<SceneHierarchyView>().Any());
+    prefab.Text = "{";
+    Wait(window, () => editor.GetVisualDescendants().OfType<TreeView>().Single(item => item.Name == "SceneHierarchy").Items.Count == 0);
+    prefab.Undo();
+    Wait(window, () => editor.GetVisualDescendants().OfType<TreeView>().Single(item => item.Name == "SceneHierarchy").Items.Count > 0);
+    editor.ShowDocument(workspace.OpenAsset("objects.material"));
+    Wait(window, () => editor.GetVisualDescendants().OfType<ComboBox>().Any(combo => combo.Name == "EngineObjects" && combo.Items.Count == 3));
+    Check(!prefab.IsDirty, "Prefab invalid Source recovery lost original data");
+    editor.Dispose();
+    window.Close();
+    Console.WriteLine("PASS scene hierarchy cycles, component references, parent edits/undo, packed compilation, preserved files, group Source, narrow layout, prefab recovery and model objects");
+}
+
+static void StyleViewer(string directory)
+{
+    using var workspace = GameWorkspace.Open(directory);
+    var document = (TextDocument)workspace.OpenAsset("text.stylesheet");
+    var original = JsonNode.Parse(document.Text);
+    var presentation = new AssetEditorView();
+    presentation.ShowDocument(document);
+    var window = new Window { Content = presentation, Width = 900, Height = 750 };
+    window.Show();
+    Wait(window, () => window.GetVisualDescendants().OfType<ListBox>().Any(list => list.Name == "StyleList" && list.Items.Count == 2));
+    var list = window.GetVisualDescendants().OfType<ListBox>().Single(list => list.Name == "StyleList");
+    Check(((StyleSheetView.Style)list.SelectedItem!).Id == "!10002" && !document.IsDirty, "Stylesheet did not preserve ordered references or marked viewing dirty");
+    var apply = window.GetVisualDescendants().OfType<Button>().Single(button => button.Name == "ApplyStyle");
+    apply.RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Button.ClickEvent));
+    Check(!document.IsDirty, "Applying unchanged style changed original data");
+    var red = window.GetVisualDescendants().OfType<NumericUpDown>().Single(box => box.Name == "StyleColor0");
+    red.Value = 0.2m;
+    Check(((Avalonia.Media.SolidColorBrush)window.GetVisualDescendants().OfType<Border>().Single(border => border.Name == "StyleSwatch").Background!).Color.R == 51 && !document.IsDirty, "RGBA preview did not update independently of document Apply");
+    red.Value = 1;
+    var size = window.GetVisualDescendants().OfType<NumericUpDown>().Single(box => box.Name == "StyleSize");
+    size.Value = 1.5m;
+    apply.RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Button.ClickEvent));
+    Check(!document.IsDirty, "Stylesheet accepted a fractional engine integer size");
+    size.Value = 16;
+    window.GetVisualDescendants().OfType<TextBox>().Single(box => box.Name == "StyleName").Text = "제목 日本語";
+    window.GetVisualDescendants().OfType<NumericUpDown>().Single(box => box.Name == "StyleSize").Value = 32;
+    apply.RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Button.ClickEvent));
+    var edited = JsonNode.Parse(document.Text)!;
+    Check(edited["map"]!["!10002"]!["body"]!["name"]!.GetValue<string>() == "제목 日本語" && edited["map"]!["!10002"]!["body"]!["size"]!.GetValue<decimal>() == 32, "Stylesheet edits did not reach Source");
+    Check(edited["root"]!.ToString() == "!10001" && JsonNode.DeepEquals(edited["map"]!["!10001"], original!["map"]!["!10001"]) && edited["map"]!["!10002"]!["body"]!["unknown"]!["keep"]!.GetValue<bool>() == false && edited["unknown"]!.GetValue<bool>() == false, "Stylesheet edits lost references or unknown fields");
+    document.Undo();
+    Wait(window, () => window.GetVisualDescendants().OfType<TextBox>().Single(box => box.Name == "StyleName").Text == "default");
+    Check(!document.IsDirty && JsonNode.DeepEquals(JsonNode.Parse(document.Text), original), "Stylesheet undo failed to restore original");
+    var sheet = window.GetVisualDescendants().OfType<StyleSheetView>().Single();
+    ((TabControl)sheet.Content!).SelectedIndex = 1;
+    Wait(window, () => window.GetVisualDescendants().OfType<TreeView>().Any(tree => tree.Name == "DataTree"));
+    var objects = window.GetVisualDescendants().OfType<JsonDataView>().Single();
+    objects.ShowObject("!10001");
+    var tree = window.GetVisualDescendants().OfType<TreeView>().Single(tree => tree.Name == "DataTree");
+    var root = (JsonDataView.Node)tree.Items[0]!;
+    tree.SelectedItem = root.Children.Single(node => node.Path.Last() == "styles").Children[1];
+    var reference = window.GetVisualDescendants().OfType<Button>().Single(button => button.Name == "OpenObjectReference");
+    Check(reference.IsEnabled && ((JsonDataView.Node)tree.SelectedItem!).Label.Contains("title · TextStyle"), "Object references did not resolve descriptive names");
+    reference.RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Button.ClickEvent));
+    Check(window.GetVisualDescendants().OfType<TextBlock>().Single(block => block.Name == "ObjectLocation").Text!.Contains("!10003"), "Reference navigation opened the wrong object");
+    window.GetVisualDescendants().OfType<Button>().Single(button => button.Name == "ObjectBack").RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Button.ClickEvent));
+    Check(window.GetVisualDescendants().OfType<TextBlock>().Single(block => block.Name == "ObjectLocation").Text!.Contains("!10001"), "Object back navigation failed");
+    Check(!document.IsDirty, "Object navigation changed data");
+    ((TabControl)sheet.Content!).SelectedIndex = 0;
+    var textPresentation = window.GetVisualDescendants().OfType<TextPresentationView>().Single();
+    textPresentation.ShowSource();
+    document.Text = "{";
+    textPresentation.SelectedIndex = 0;
+    Wait(window, () => list.Items.Count == 0);
+    document.Undo();
+    Wait(window, () => list.Items.Count == 2 && window.GetVisualDescendants().OfType<TextBox>().Single(box => box.Name == "StyleName").Text == "default");
+    Check(!document.IsDirty, "Stylesheet invalid source recovery lost undo history");
+    presentation.Dispose();
+    window.Close();
+    Console.WriteLine("PASS stylesheet edits, original references, unknown fields, undo and object navigation");
+}
+
 static void SyntaxHighlighting()
 {
     void Color(string name, string type, string source, int line, string token, string expected)
@@ -820,6 +951,118 @@ static void Navigation()
     Console.WriteLine("PASS logical Gii paths, declared virtual parents, type groups, folder expansion and stable filtered selection");
 }
 
+static void LanguageImages(string directory, string output)
+{
+    var gameRoot = Path.TrimEndingDirectorySeparator(Path.GetFullPath(directory));
+    output = Path.GetFullPath(output);
+    if (output.Equals(gameRoot, StringComparison.OrdinalIgnoreCase) || output.StartsWith(gameRoot + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+    {
+        throw new ArgumentException("Verification output must be outside the game installation");
+    }
+
+    if (Directory.Exists(output) && Directory.EnumerateFileSystemEntries(output).Any())
+    {
+        throw new IOException("Use an empty verification output directory");
+    }
+
+    Directory.CreateDirectory(output);
+    using var workspace = GameWorkspace.Open(directory);
+    var assets = workspace.Assets.Values.ToArray();
+    var changed = new List<string>();
+    static RgbaImage ChangeImage(RgbaImage original)
+    {
+        var pixels = (byte[])original.Pixels.Clone();
+        var offset = Enumerable.Range(0, pixels.Length / 4).First(index => pixels[index * 4 + 3] > 0) * 4;
+        pixels[offset] = (byte)(pixels[offset] ^ 127);
+        return new RgbaImage(original.Width, original.Height, pixels);
+    }
+    var textureInfo = assets.First(info => info.Type == "texture" && info.AssetName.Contains("ChapterTitle/icon/", StringComparison.Ordinal));
+    var texture = (ResourceDocument)workspace.OpenAsset(textureInfo.AssetName);
+    var originalTexture = texture.GetImage()!;
+    var imagePath = Path.Combine(output, "chapter-icon.png");
+    ChangeImage(originalTexture).SavePng(imagePath);
+    texture.ImportSource(imagePath);
+    Check(texture.GetImage()!.Width == originalTexture.Width && !texture.GetImage()!.Pixels.SequenceEqual(originalTexture.Pixels), "Chapter logo PNG import did not update image pixels");
+    changed.Add(texture.Name);
+    var packInfo = assets.First(info => info.Type == "texture_pack");
+    var packDocument = (ResourceDocument)workspace.OpenAsset(packInfo.AssetName);
+    var pack = (TexturePackAsset)packDocument.Baseline;
+    var images = pack.Textures.ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.Ordinal);
+    var layer = images.First(pair => pair.Value.Pixels.Where((_, index) => index % 4 == 3).Any(alpha => alpha > 0));
+    images[layer.Key] = ChangeImage(layer.Value);
+    var psd = Path.Combine(output, "texture-pack.psd");
+    new TexturePackAsset(images).SaveTo(psd);
+    packDocument.ImportSource(psd);
+    Check(!((TexturePackAsset)packDocument.Current).Textures[layer.Key].Pixels.SequenceEqual(layer.Value.Pixels), "Texture pack PSD import did not update selected layer");
+    changed.Add(packDocument.Name);
+    var deckDocument = assets.Where(info => info.Type == "deck_pack").Select(info => workspace.OpenAsset(info.AssetName)).OfType<ResourceDocument>().First(document => document.Baseline is DeckPackAsset source && ((HmgAsset)source.Items["decks.png"]).Image!.Pixels.Where((_, index) => index % 4 == 3).Any(alpha => alpha > 0));
+    var deck = (DeckPackAsset)deckDocument.Baseline;
+    var deckFolder = Path.Combine(output, "deck-pack");
+    deckDocument.ExportSource(deckFolder);
+    var deckImage = (HmgAsset)deck.Items["decks.png"];
+    ChangeImage(deckImage.Image!).SavePng(Path.Combine(deckFolder, "decks.png"));
+    deckDocument.ImportSource(deckFolder);
+    Check(JsonNode.DeepEquals(((JsonAsset)((DeckPackAsset)deckDocument.Current).Items["decks.json"]).Data, ((JsonAsset)deck.Items["decks.json"]).Data), "Deck atlas edit changed geometry or UV definitions");
+    changed.Add(deckDocument.Name);
+    ResourceDocument? spriteDocument = null;
+    foreach (var info in assets.Where(info => info.Type == "msprite"))
+    {
+        var document = workspace.OpenAsset(info.AssetName);
+        if (document is ResourceDocument candidate && candidate.Baseline is MSpriteAsset sprite && sprite.Data!["anims"]!.AsObject().Count == 1 && sprite.Data["atlases"]!.AsObject().Count == 1 && sprite.Data["anims"]!.AsObject().First().Value!["seq"]!.AsArray().Count is > 0 and <= 32)
+        {
+            spriteDocument = candidate;
+            break;
+        }
+    }
+    Check(spriteDocument != null, "No small single-animation installed sprite available");
+    var originalSprite = (MSpriteAsset)spriteDocument!.Baseline;
+    var spriteFolder = Path.Combine(output, "sprite");
+    spriteDocument.ExportSource(spriteFolder);
+    var atlas = originalSprite.AtlasImages.First();
+    var modifiedAtlases = originalSprite.AtlasImages.ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.Ordinal);
+    // Recolour opaque source pixels so at least one used sprite module changes.
+    var spritePixels = (byte[])atlas.Value.Pixels.Clone();
+    for (var pixel = 0; pixel < spritePixels.Length; pixel += 4)
+    {
+        if (spritePixels[pixel + 3] > 0)
+        {
+            spritePixels[pixel] ^= 127;
+        }
+    }
+
+    modifiedAtlases[atlas.Key] = new RgbaImage(atlas.Value.Width, atlas.Value.Height, spritePixels);
+    File.WriteAllBytes(Directory.GetFiles(spriteFolder, "*.ase").Single(), AseWriter.Write(originalSprite.Data!, modifiedAtlases, []));
+    spriteDocument.ImportSource(spriteFolder);
+    Check(!((MSpriteAsset)spriteDocument.Current).RenderFrame(spriteDocument.Entries[0], 0).Pixels.SequenceEqual(originalSprite.RenderFrame(spriteDocument.Entries[0], 0).Pixels), "Sprite ASE import did not change the displayed frame");
+    changed.Add(spriteDocument.Name);
+    var mod = workspace.BuildMod("Language image workflow verification");
+    var modFile = Path.Combine(output, "language-images.ewmod");
+    mod.SaveTo(modFile);
+    var read = ModPackage.Read(modFile);
+    Check(workspace.ValidateMod(read).Count == 0, "Image mod baseline validation failed");
+    var destination = Path.Combine(output, "archives");
+    workspace.SaveArchives(destination);
+    foreach (var path in read.ResourcePaths)
+    {
+        var bytes = read.GetResource(path);
+        var archive = GArchive.Read(Path.Combine(destination, path.Split('/')[0] + ".g"));
+        Check(archive[path].SequenceEqual(bytes), "Image archive output differs from packaged resource");
+        if (bytes.AsSpan().StartsWith("PGF"u8))
+        {
+            Check(Asset.Create<HmgAsset>(bytes).Image != null, "Compiled HMG resource could not be decoded");
+        }
+    }
+    using var reopened = GameWorkspace.Open(directory, destination);
+    Check(!((ResourceDocument)reopened.OpenAsset(texture.Name)).GetImage()!.Pixels.SequenceEqual(originalTexture.Pixels), "Written archive overlay did not expose the edited chapter image");
+    Check(!((ResourceDocument)reopened.OpenAsset(spriteDocument.Name)).GetImage(spriteDocument.Entries[0])!.Pixels.SequenceEqual(originalSprite.RenderFrame(spriteDocument.Entries[0], 0).Pixels), "Written archive overlay did not expose the edited sprite frame");
+    foreach (var name in changed)
+    {
+        Console.WriteLine("IMAGE " + name);
+    }
+
+    Console.WriteLine($"PASS installed PNG/HMG, texture-pack PSD, deck atlas and sprite ASE imports → BuildMod → {read.ResourcePaths.Count} runtime resources → independent archive output and reload; game was not started");
+}
+
 static void InstalledGame(string directory, string? screenshot)
 {
     var root = Path.Combine(Path.GetTempPath(), "EastwardModTool-installed-" + Guid.NewGuid());
@@ -1031,6 +1274,10 @@ static AssetManager Fixture(string root)
           "actors/hero/readme.txt":{"type":"text","objectFiles":{"data":"fixture/hero"}},
           "actors/enemy/readme.txt":{"type":"text","objectFiles":{"data":"fixture/enemy"}},
           "settings.json":{"type":"data_json","objectFiles":{"data":"fixture/settings"}},
+          "text.stylesheet":{"type":"stylesheet","objectFiles":{"def":"fixture/styles"}},
+          "objects.scene":{"type":"scene","objectFiles":{"def":"fixture/scene","compiled":"fixture/scene-bin"}},
+          "objects.prefab":{"type":"prefab","objectFiles":{"def":"fixture/prefab"}},
+          "objects.material":{"type":"physics_material","objectFiles":{"def":"fixture/material"}},
           "fixture.lua":{"type":"lua"},
           "event.sq":{"type":"sq_script","objectFiles":{"data":"fixture/sq"}},
           "fsm.graphml":{"type":"fsm_scheme","objectFiles":{"def":"fixture/fsm"}},
@@ -1053,6 +1300,15 @@ static AssetManager Fixture(string root)
     archive["fixture/lua"] = [27, 76, 74, 2, 2, 11, 2, 0, 1, 0, 0, 0, 1, 75, 0, 1, 0, 0];
     archive["fixture/hero"] = "hero"u8.ToArray();
     archive["fixture/enemy"] = "enemy"u8.ToArray();
+    var sceneData = """{"__VERSION":"2","entities":[{"id":"hero","components":["component"],"children":[{"id":"hero","components":[],"children":[]}]}],"map":{"hero":{"model":"mock.Entity","body":{"name":"Hero","loc":[1,2,3],"unknown":false}},"component":{"model":"mock.PhysicsBody","body":{"name":"Body","material":"material","target":"hero"}},"material":{"model":"mock.PhysicsMaterial","body":{"friction":0.5,"unknown":{"keep":42}}}},"unknown":"keep"}"""u8.ToArray();
+    archive["fixture/scene/scene_index.json"] = """{"groups":[],"unknown":false}"""u8.ToArray();
+    archive["fixture/scene/default.scene_group"] = sceneData;
+    archive["fixture/scene/preserved.bin"] = [1, 2, 3];
+    archive["fixture/prefab"] = sceneData;
+    var materialData = JsonNode.Parse(sceneData)!;
+    materialData["root"] = "material";
+    archive["fixture/material"] = Encoding.UTF8.GetBytes(materialData.ToJsonString());
+    archive["fixture/styles"] = """{"root":"!10001","map":{"!10001":{"model":"mock.StyleSheet","body":{"styles":["!10002","!10003"],"extra":42}},"!10002":{"model":"mock.TextStyle","body":{"name":"default","font":false,"size":16,"color":[1,0.5,0,1],"allowScale":true,"unknown":{"keep":false}}},"!10003":{"model":"mock.TextStyle","body":{"name":"title","font":"font/original.fnt","size":24,"color":[1,1,1,1],"allowScale":false}}},"unknown":false}"""u8.ToArray();
     archive["fixture/settings"] = "{\"unknown\":false,\"message\":\"안녕\"}"u8.ToArray();
     archive["fixture/sq"] = Encoding.UTF8.GetBytes(SQCompiler.Compile("!start\nsay hello", "event.sq").ToJsonString());
     archive["fixture/fsm"] = "return (function() nodelist={['start']={localName='start',type='state'};['next']={localName='next',type='state'};}; nodelist['start'].next={['$next']='next';[true]='next';}; return nodelist end) ()"u8.ToArray();

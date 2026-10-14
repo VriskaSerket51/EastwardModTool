@@ -17,6 +17,11 @@ public sealed class TextPresentationView : TabControl, IDisposable
         {
             title = "Source";
         }
+        else if (document.AssetType == "stylesheet")
+        {
+            _preview = new StyleSheetView(document);
+            title = "Styles";
+        }
         else if (document.AssetType == "code_tileset")
         {
             _preview = new CodeTilesetView(document);
@@ -44,6 +49,11 @@ public sealed class TextPresentationView : TabControl, IDisposable
             {
                 _preview = new SceneHierarchyView(document);
                 title = "Hierarchy";
+            }
+            else if (data is JsonObject obj && obj["map"] is JsonObject)
+            {
+                _preview = new EngineObjectView(document);
+                title = "Objects";
             }
             else if (data != null)
             {

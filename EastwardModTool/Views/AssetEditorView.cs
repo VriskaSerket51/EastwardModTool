@@ -233,6 +233,11 @@ public sealed class AssetEditorView : UserControl, IDisposable
         }
         if (_document is ResourceDocument resource && args.PropertyName == nameof(ResourceDocument.Current))
         {
+            if (_presentation is SceneHierarchyView)
+            {
+                return;
+            }
+
             if (resource.Current is DeckPackAsset || _presentation != null)
             {
                 ShowDocument(resource);

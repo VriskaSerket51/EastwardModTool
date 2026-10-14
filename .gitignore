@@ -1,13 +1,44 @@
+# .NET build output
 bin/
 obj/
+build/
 publish/
+packages/
+*.nupkg
+*.snupkg
+
+# Local IDE settings
 .vs/
+.vscode/
 .idea/
 *.user
 *.suo
+*.iml
+_ReSharper.Caches/
+
+# Native build output and local CMake settings
+cmake-build-*/
+CMakeFiles/
+CMakeCache.txt
+CMakeUserPresets.json
+cmake_install.cmake
+install_manifest.txt
+.ninja_deps
+.ninja_log
+build.ninja
+rules.ninja
+
+# Generated test results
+TestResults/
+*.trx
+*.coverage
+*.coveragexml
+
+# Local editing projects and mod packages
 *.ewmod
 *.ewproject
-TestResults/
-packages/
-riderModule.iml
-_ReSharper.Caches/
+
+# Operating system files
+.DS_Store
+Thumbs.db
+Desktop.ini
