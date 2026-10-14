@@ -1,0 +1,34 @@
+<Project>
+  <PropertyGroup>
+    <NativeRuntimeIdentifier Condition="'$(RuntimeIdentifier)' != ''">$(RuntimeIdentifier)</NativeRuntimeIdentifier>
+    <NativeRuntimeIdentifier Condition="'$(NativeRuntimeIdentifier)' == ''">$(NETCoreSdkRuntimeIdentifier)</NativeRuntimeIdentifier>
+    <NativeLibraryName Condition="$([System.String]::Copy('$(NativeRuntimeIdentifier)').StartsWith('win-'))">eastward-luajit.dll</NativeLibraryName>
+    <NativeLibraryName Condition="$([System.String]::Copy('$(NativeRuntimeIdentifier)').StartsWith('linux-'))">libeastward-luajit.so</NativeLibraryName>
+    <NativeLibraryName Condition="$([System.String]::Copy('$(NativeRuntimeIdentifier)').StartsWith('osx-'))">libeastward-luajit.dylib</NativeLibraryName>
+    <NativeBuildDirectory>$([System.IO.Path]::GetFullPath('$(MSBuildProjectDirectory)/$(BaseIntermediateOutputPath)native/$(NativeRuntimeIdentifier)'))</NativeBuildDirectory>
+    <NativeInstallDirectory>$(NativeBuildDirectory)/installed</NativeInstallDirectory>
+    <CMakeExecutable Condition="'$(CMakeExecutable)' == ''">cmake</CMakeExecutable>
+    <NativeBuildType Condition="'$(OS)' != 'Windows_NT'">-DCMAKE_BUILD_TYPE=Release</NativeBuildType>
+    <NativeArchitecture Condition="'$(OS)' == 'Windows_NT' and $([System.String]::Copy('$(NativeRuntimeIdentifier)').EndsWith('-x64'))">-A x64</NativeArchitecture>
+    <NativeArchitecture Condition="'$(OS)' == 'Windows_NT' and $([System.String]::Copy('$(NativeRuntimeIdentifier)').EndsWith('-arm64'))">-A ARM64</NativeArchitecture>
+    <NativeArchitecture Condition="$([System.String]::Copy('$(NativeRuntimeIdentifier)').StartsWith('osx-')) and $([System.String]::Copy('$(NativeRuntimeIdentifier)').EndsWith('-x64'))">-DCMAKE_OSX_ARCHITECTURES=x86_64</NativeArchitecture>
+    <NativeArchitecture Condition="$([System.String]::Copy('$(NativeRuntimeIdentifier)').StartsWith('osx-')) and $([System.String]::Copy('$(NativeRuntimeIdentifier)').EndsWith('-arm64'))">-DCMAKE_OSX_ARCHITECTURES=arm64</NativeArchitecture>
+  </PropertyGroup>
+  <ItemGroup>
+    <NativeDecompilerSource Include="$(MSBuildThisFileDirectory)**/*.cpp;$(MSBuildThisFileDirectory)**/*.h;$(MSBuildThisFileDirectory)CMakeLists.txt;$(MSBuildThisFileDirectory)NativeDecompiler.targets;$(MSBuildProjectDirectory)/../EastwardLib/Native/*.cpp;$(MSBuildProjectDirectory)/../EastwardLib/Native/CMakeLists.txt" />
+    <None Include="$(NativeInstallDirectory)/$(NativeLibraryName)" Link="$(NativeLibraryName)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <None Include="$(MSBuildThisFileDirectory)decompiler/LICENSE" Link="licenses/luajit-decompiler-MIT.txt" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <None Include="$(MSBuildThisFileDirectory)decompiler/NOTICE.txt" Link="licenses/luajit-decompiler-NOTICE.txt" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+  <Target Name="BuildNativeDecompiler" BeforeTargets="PrepareForBuild;GetCopyToOutputDirectoryItems" Inputs="@(NativeDecompilerSource)" Outputs="$(NativeInstallDirectory)/$(NativeLibraryName)" Condition="'$(DesignTimeBuild)' != 'true'">
+    <Error Condition="!$([System.Text.RegularExpressions.Regex]::IsMatch('$(NativeRuntimeIdentifier)', '^(win|linux|osx)-(x64|arm64)$'))" Text="Build the bundled decompiler for win/linux/osx x64 or arm64." />
+    <Error Condition="'$(NativeLibraryName)' == ''" Text="No bundled LuaJIT decompiler is configured for $(NativeRuntimeIdentifier)." />
+    <Error Condition="'$(OS)' == 'Windows_NT' and !$([System.String]::Copy('$(NativeRuntimeIdentifier)').StartsWith('win-'))" Text="Build the native decompiler on a host matching the target OS. Windows cannot build Linux or macOS native libraries." />
+    <Error Condition="$([System.String]::Copy('$(NETCoreSdkRuntimeIdentifier)').StartsWith('linux-')) and '$(NativeRuntimeIdentifier)' != '$(NETCoreSdkRuntimeIdentifier)'" Text="Build the Linux native decompiler on a host matching the target OS and architecture." />
+    <Error Condition="$([System.String]::Copy('$(NETCoreSdkRuntimeIdentifier)').StartsWith('osx-')) and !$([System.String]::Copy('$(NativeRuntimeIdentifier)').StartsWith('osx-'))" Text="Build the native decompiler on a host matching the target OS." />
+    <Exec Command="&quot;$(CMakeExecutable)&quot; -S &quot;$(MSBuildThisFileDirectory).&quot; -B &quot;$(NativeBuildDirectory)&quot; $(NativeArchitecture) $(NativeBuildType) -DCMAKE_INSTALL_PREFIX=&quot;$(NativeInstallDirectory)&quot;" />
+    <Exec Command="&quot;$(CMakeExecutable)&quot; --build &quot;$(NativeBuildDirectory)&quot; --config Release --parallel" />
+    <Exec Command="&quot;$(CMakeExecutable)&quot; --install &quot;$(NativeBuildDirectory)&quot; --config Release" />
+    <Touch Files="$(NativeInstallDirectory)/$(NativeLibraryName)" />
+  </Target>
+</Project>
