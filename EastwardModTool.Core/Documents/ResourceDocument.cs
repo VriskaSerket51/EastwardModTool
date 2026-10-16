@@ -4,7 +4,7 @@ using System.Text.Json.Nodes;
 
 namespace EastwardModTool.Core.Documents;
 
-public sealed class ResourceDocument : EditableDocument<Asset>
+public class ResourceDocument : EditableDocument<Asset>
 {
     public Asset Current => State;
     public string? PreviewWarning
@@ -173,13 +173,22 @@ public sealed class ResourceDocument : EditableDocument<Asset>
         }
 
         var asset = package.Items[name];
-        if (asset is BinaryAsset binary && Path.GetExtension(name).ToLowerInvariant() is ".png" or ".jpg" or ".jpeg")
+        var extension = Path.GetExtension(name).ToLowerInvariant();
+        if (asset is BinaryAsset raw && extension == ".hmg")
+        {
+            asset = Asset.Create<HmgAsset>(raw.Encode());
+        }
+        else if (this is RuntimeResourcesDocument && asset is BinaryAsset jsonBytes && extension == ".json")
+        {
+            asset = Asset.Create<JsonAsset>(jsonBytes.Encode());
+        }
+        if (asset is BinaryAsset binary && extension is ".png" or ".jpg" or ".jpeg")
         {
             using var input = new MemoryStream(binary.Encode());
             asset = new HmgAsset(RgbaImage.Load(input));
         }
         AssetDocument document = asset is TextAsset or JsonAsset && asset is not MSpriteAsset ? new TextDocument(Name + "/" + name, asset, false) : new ResourceDocument(Name + "/" + name, asset, false);
-        document.AssetType = asset is JsonAsset ? "data_json" : "file";
+        document.AssetType = asset is JsonAsset ? "data_json" : extension is ".ttf" or ".otf" or ".ttc" ? "font_ttf" : "file";
         return document;
     }
 
@@ -239,6 +248,7 @@ public sealed class ResourceDocument : EditableDocument<Asset>
     {
         return value switch
         {
+            LocalePackAsset locale => (locale.Config.ToJsonString().Length + locale.Languages.Values.Sum(table => table.ToJsonString().Length)) * 2L,
             HmgAsset image => image.Image?.Pixels.LongLength ?? 0,
             MSpriteAsset sprite => sprite.AtlasImages.Values.Sum(image => image.Pixels.LongLength) + (sprite.Data?.ToJsonString().Length ?? 0) * 2L,
             PackageAsset package => package.Items.Values.Sum(EstimateSize),

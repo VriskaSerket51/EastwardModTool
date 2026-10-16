@@ -5,6 +5,9 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
   <ItemGroup>
+    <EmbeddedResource Include="Localization/LanguagePatchRuntime.lua" />
+  </ItemGroup>
+  <ItemGroup>
     <ProjectReference Include="../EastwardLib/EastwardLib.csproj" />
   </ItemGroup>
 </Project>

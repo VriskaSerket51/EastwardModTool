@@ -66,6 +66,8 @@ public sealed class GameWorkspace : IDisposable
         return new GameWorkspace(manager, directory, decompilerPath) { OverlayDirectory = Directory.Exists(overlay) ? Path.GetFullPath(overlay) : null };
     }
 
+    internal Asset LoadOriginalAsset(string name) => _manager.LoadAsset(name) ?? throw new InvalidDataException("Missing asset: " + name);
+
     public AssetDocument OpenAsset(string name)
     {
         if (_documents.TryGetValue(name, out var document))
@@ -73,6 +75,13 @@ public sealed class GameWorkspace : IDisposable
             return document;
         }
 
+        if (name == RuntimeResourcesDocument.DocumentName)
+        {
+            document = new RuntimeResourcesDocument();
+            document.PropertyChanged += DocumentChanged;
+            _documents.Add(name, document);
+            return document;
+        }
         if (name.StartsWith('@'))
         {
             var data = name switch
@@ -128,7 +137,7 @@ public sealed class GameWorkspace : IDisposable
 
     internal Dictionary<string, string?> GetOriginalHashes(AssetDocument document)
     {
-        var resources = document is MetadataDocument ? new Dictionary<string, byte[]>() : new AssetCompiler(_manager).Compile(document.Name, document.Baseline);
+        var resources = document is MetadataDocument or RuntimeResourcesDocument ? new Dictionary<string, byte[]>() : new AssetCompiler(_manager).Compile(document.Name, document.Baseline);
         var hashes = resources.Keys.ToDictionary(path => path, path =>
         {
             var bytes = _manager.LoadFile(path);
@@ -140,13 +149,69 @@ public sealed class GameWorkspace : IDisposable
         return hashes;
     }
 
-    public ModPackage BuildMod(string name)
+    public IReadOnlyList<AssetDocument> CreateLanguagePatch(LanguagePatchOptions options)
     {
-        var edited = _documents.Values.Where(document => document.IsDirty && document is not MetadataDocument).ToDictionary(document => document.Name, document => document.Compile(), StringComparer.Ordinal);
+        var changes = new LanguagePatchBuilder(this).Prepare(options);
+        // Compile the entire proposed patch before committing any document changes.
+        BuildMod(options.DisplayName, changes);
+        var documents = new List<AssetDocument>();
+        foreach (var (name, asset) in changes)
+        {
+            var document = OpenAsset(name);
+            if (document is RuntimeResourcesDocument runtime)
+            {
+                runtime.ReplaceResources(((PackageAsset)asset).Items.ToDictionary(pair => pair.Key, pair => pair.Value.Encode(), StringComparer.Ordinal));
+            }
+            else
+            {
+                document.ImportAsset(asset);
+            }
+            documents.Add(document);
+        }
+        return documents;
+    }
+
+    public ModPackage BuildMod(string name) => BuildMod(name, null);
+
+    private ModPackage BuildMod(string name, IReadOnlyDictionary<string, Asset>? proposed)
+    {
+        var edited = _documents.Values.Where(document => document.IsDirty && document is not MetadataDocument and not RuntimeResourcesDocument).ToDictionary(document => document.Name, document => document.Compile(), StringComparer.Ordinal);
         var metadata = _documents.Values.OfType<MetadataDocument>().Where(document => document.IsDirty).ToDictionary(document => document.Name, document => ((JsonAsset)document.Compile()).Data!.ToJsonString(), StringComparer.Ordinal);
+        var added = _documents.Values.OfType<RuntimeResourcesDocument>().Where(document => document.IsDirty).SelectMany(document => document.Resources).ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.Ordinal);
+        if (proposed != null)
+        {
+            foreach (var (assetName, asset) in proposed)
+            {
+                if (assetName == RuntimeResourcesDocument.DocumentName)
+                {
+                    added = ((PackageAsset)asset).Items.ToDictionary(pair => pair.Key, pair => pair.Value.Encode(), StringComparer.Ordinal);
+                }
+                else if (assetName.StartsWith('@'))
+                {
+                    metadata[assetName] = ((JsonAsset)asset).Data!.ToJsonString();
+                }
+                else
+                {
+                    edited[assetName] = asset;
+                }
+            }
+        }
+        Dictionary<string, byte[]> Merge(IReadOnlyDictionary<string, byte[]> compiled)
+        {
+            var resources = new Dictionary<string, byte[]>(compiled, StringComparer.Ordinal);
+            foreach (var (path, bytes) in added)
+            {
+                if (resources.TryGetValue(path, out var previous) && !previous.AsSpan().SequenceEqual(bytes))
+                {
+                    throw new InvalidDataException("Conflicting runtime resource: " + path);
+                }
+                resources[path] = bytes;
+            }
+            return resources;
+        }
         if (metadata.Count == 0)
         {
-            return ModPackage.Create(name, _manager, new AssetCompiler(_manager).Compile(edited));
+            return ModPackage.Create(name, _manager, Merge(new AssetCompiler(_manager).Compile(edited)));
         }
 
         var session = _manager.CopyForEditing();
@@ -170,7 +235,7 @@ public sealed class GameWorkspace : IDisposable
                 }
             });
             var compiler = new AssetCompiler(session);
-            var resources = new Dictionary<string, byte[]>(compiler.Compile(edited), StringComparer.Ordinal);
+            var resources = Merge(compiler.Compile(edited));
             ValidateMetadataResources(session, resources);
             foreach (var (path, bytes) in compiler.CompileMetadata())
             {

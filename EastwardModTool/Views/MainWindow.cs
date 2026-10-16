@@ -30,6 +30,7 @@ public sealed class MainWindow : Window
     private readonly List<(MenuItem Item, Func<bool> Available)> _commands = [];
     private readonly Menu _menu;
     private readonly MenuItem _pinned = new() { Header = "Pinned assets" };
+    private readonly MenuItem _languagePatchDrafts = new() { Name = "LanguagePatchDrafts", Header = "Language patch drafts", IsEnabled = false };
     private readonly string? _decompilerPath;
     private GameWorkspace? _workspace;
     private AssetDocument? _document;
@@ -162,6 +163,9 @@ public sealed class MainWindow : Window
             Header = "_Mod",
             Items =
         {
+            Command("Create language patch…", CreateLanguagePatch, Workspace, name: "CreateLanguagePatchMenu"),
+            _languagePatchDrafts,
+            new Separator(),
             Command("Export mod…", ExportMod, Changes),
             Command("Build archives…", BuildArchives, Changes),
             Command("Apply mod…", ApplyMod, Workspace)
@@ -355,6 +359,7 @@ public sealed class MainWindow : Window
         }
 
         _tabs.SetSession(null);
+        _languagePatchDrafts.Items.Clear();
         _session?.Dispose();
         _editor.Clear();
         if (_workspace != null)
@@ -371,6 +376,10 @@ public sealed class MainWindow : Window
         _document = null;
         workspace.Changed += WorkspaceChanged;
         _assets.SetAssets(workspace.Assets);
+        if (workspace.Documents.Any(document => document is RuntimeResourcesDocument || document is TextDocument text && text.Text.StartsWith("-- EastwardModTool.LanguagePatch.v1", StringComparison.Ordinal)))
+        {
+            SetLanguagePatchDrafts(workspace.Documents.Where(document => document.IsDirty));
+        }
         _title.Text = "Select an asset";
         _layout.ShowAssets();
         _metadata.Text = "";
@@ -493,6 +502,7 @@ public sealed class MainWindow : Window
             }
         }
         _pinned.IsEnabled = !_busy && pinned.Length > 0;
+        _languagePatchDrafts.IsEnabled = !_busy && _languagePatchDrafts.Items.Count > 0;
         Title = "EastwardModTool" + (_workspace?.IsModified == true ? " • Unsaved changes" : "");
     }
 
@@ -541,6 +551,35 @@ public sealed class MainWindow : Window
         var output = path;
         await Task.Run(() => _document.ExportSource(output));
         _status.Text = "Exported " + output;
+    }
+
+    private async Task CreateLanguagePatch()
+    {
+        if (_workspace == null)
+        {
+            return;
+        }
+
+        var documents = await new LanguagePatchView(_workspace).ShowDialog<IReadOnlyList<AssetDocument>?>(this);
+        if (documents == null || documents.Count == 0)
+        {
+            return;
+        }
+
+        SetLanguagePatchDrafts(_workspace.Documents.Where(document => document.IsDirty).Concat(documents).DistinctBy(document => document.Name));
+        _session!.Open(documents.FirstOrDefault(document => document is TextDocument) ?? documents[0]);
+        _status.Text = $"Created {documents.Count} language-patch asset drafts · review and save the project, then export a mod";
+    }
+
+    private void SetLanguagePatchDrafts(IEnumerable<AssetDocument> documents)
+    {
+        _languagePatchDrafts.Items.Clear();
+        foreach (var document in documents)
+        {
+            var item = new MenuItem { Header = document.Name };
+            item.Click += async (_, _) => await Run(() => { _session!.Open(document); return Task.CompletedTask; });
+            _languagePatchDrafts.Items.Add(item);
+        }
     }
 
     private async Task ExportMod()

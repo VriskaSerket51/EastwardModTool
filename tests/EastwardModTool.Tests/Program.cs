@@ -18,6 +18,14 @@ using EastwardModTool.Core.Navigation;
 using EastwardModTool.Core.Documents;
 using EastwardModTool.Views;
 
+if (args.Length >= 2 && args[0] == "--language-patch-ui")
+{
+    AppBuilder.Configure<App>().UseSkia().UseHeadless(new AvaloniaHeadlessPlatformOptions { UseHeadlessDrawing = false }).SetupWithoutStarting();
+    Directory.CreateDirectory(args[1]);
+    LanguagePatchUI(args[1]);
+    return;
+}
+
 if (args.Length >= 3 && args[0] == "--language-images")
 {
     LanguageImages(args[1], args[2]);
@@ -949,6 +957,95 @@ static void Navigation()
     Check(browser.Roots.Single(node => node.Name == "empty").IsExpanded, "View switch lost directory expansion state");
     Check(index["actors/hero/readme.txt"].FilePath == "game/asset/actors/hero/readme.txt", "Navigation modified metadata paths");
     Console.WriteLine("PASS logical Gii paths, declared virtual parents, type groups, folder expansion and stable filtered selection");
+}
+
+static void LanguagePatchUI(string output)
+{
+    var root = Path.Combine(Path.GetTempPath(), "Eastward-language-ui-" + Guid.NewGuid());
+    Directory.CreateDirectory(root);
+    try
+    {
+        using var workspace = new GameWorkspace(Fixture(root), root);
+        var owner = new Window { Width = 800, Height = 700 };
+        owner.Show();
+        var dialog = new LanguagePatchView(workspace);
+        var result = dialog.ShowDialog<IReadOnlyList<AssetDocument>?>(owner);
+        Wait(dialog, () => dialog.GetVisualDescendants().OfType<TextBox>().Any(input => input.Name == "PatchLanguage"));
+        TextBox Input(string name) => dialog.GetVisualDescendants().OfType<TextBox>().Single(input => input.Name == name);
+        Input("PatchLanguage").Text = "ko";
+        Input("PatchDisplayName").Text = "한국어";
+        Input("PatchTranslations").Text = "translations.json";
+        Input("PatchOriginalFonts").Text = "font/Dialog.fnt\nfont/ui.fnt";
+        Input("PatchDialogLineSpacing").Text = "1.25";
+        Input("PatchFirstRunSpacing").Text = "36";
+        dialog.AddSource("texture.png", "chapter.png");
+        dialog.AddSource("props.deckpack", "edited-decks");
+        var options = dialog.ReadOptions();
+        Check(options.Language == "ko" && options.DisplayName == "한국어" && options.BaseLanguage == "en" && options.LocalizedImages["texture.png"] == "chapter.png" && options.SourceFiles["props.deckpack"] == "edited-decks" && options.TranslationFile == "translations.json" && options.IncludeInitialMenu && options.OriginalFontAssets.Count == 2 && options.DialogLineSpacing == 1.25 && options.FirstRunButtonSpacing == 36, "Language patch form lost Unicode, graphics mapping or default options");
+        using (var wideImage = dialog.CaptureRenderedFrame())
+        {
+            wideImage!.Save(Path.Combine(output, "language-patch-wide.png"), new Avalonia.Media.Imaging.PngBitmapEncoderOptions());
+        }
+
+        dialog.Width = 460;
+        dialog.Height = 510;
+        Wait(dialog, () => dialog.GetVisualDescendants().OfType<Button>().Any(button => button.Name == "CreateLanguagePatch" && button.Bounds.Width > 0));
+        var create = dialog.GetVisualDescendants().OfType<Button>().Single(button => button.Name == "CreateLanguagePatch");
+        Check(dialog.GetVisualDescendants().OfType<ScrollViewer>().Any(scroll => scroll.Name == "LanguagePatchScroll" && scroll.Extent.Height > scroll.Viewport.Height), "Narrow language patch form did not scroll");
+        var position = create.TranslatePoint(default, dialog);
+        Check(position != null && position.Value.Y >= 0 && position.Value.Y + create.Bounds.Height <= dialog.Bounds.Height, "Language patch create button was clipped in a narrow window");
+        var prepared = workspace.OpenAsset("settings.json");
+        dialog.CreatePatch = _ => throw new InvalidDataException("Fixture error");
+        create.RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Button.ClickEvent));
+        Wait(dialog, () => dialog.GetVisualDescendants().OfType<TextBlock>().Any(block => block.Name == "LanguagePatchStatus" && block.Text == "Fixture error"));
+        Check(Input("PatchDisplayName").Text == "한국어" && !workspace.HasChanges, "Failed language patch creation lost input or changed drafts");
+        dialog.CreatePatch = input => { Check(input.LocalizedImages["texture.png"] == "chapter.png", "Create action lost source mapping"); return new[] { prepared }; };
+        using var image = dialog.CaptureRenderedFrame();
+        image!.Save(Path.Combine(output, "language-patch-narrow.png"), new Avalonia.Media.Imaging.PngBitmapEncoderOptions());
+        var scroll = dialog.GetVisualDescendants().OfType<ScrollViewer>().Single(view => view.Name == "LanguagePatchScroll");
+        scroll.Offset = new Vector(0, scroll.Extent.Height);
+        using (var bottomImage = dialog.CaptureRenderedFrame())
+        {
+            bottomImage!.Save(Path.Combine(output, "language-patch-options.png"), new Avalonia.Media.Imaging.PngBitmapEncoderOptions());
+        }
+
+        create.RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Button.ClickEvent));
+        Wait(owner, () => result.IsCompleted);
+        Check(result.Result?.Single() == prepared, "Language patch dialog did not return workspace documents");
+        owner.Close();
+        var main = new MainWindow(["--game", root]);
+        main.Show();
+        var modMenu = main.GetVisualDescendants().OfType<Menu>().Single().Items.OfType<MenuItem>().Single(item => Equals(item.Header, "_Mod"));
+        var command = modMenu.Items.OfType<MenuItem>().Single(item => item.Name == "CreateLanguagePatchMenu");
+        Wait(main, () => command.IsEnabled);
+        command.RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(MenuItem.ClickEvent));
+        Wait(main, () => main.OwnedWindows.OfType<LanguagePatchView>().Any());
+        var menuDialog = main.OwnedWindows.OfType<LanguagePatchView>().Single();
+        menuDialog.GetVisualDescendants().OfType<TextBox>().Single(input => input.Name == "PatchLanguage").Text = "ko";
+        menuDialog.GetVisualDescendants().OfType<TextBox>().Single(input => input.Name == "PatchDisplayName").Text = "한국어";
+        menuDialog.CreatePatch = _ => new[] { prepared };
+        menuDialog.GetVisualDescendants().OfType<Button>().Single(button => button.Name == "CreateLanguagePatch").RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Button.ClickEvent));
+        var drafts = modMenu.Items.OfType<MenuItem>().Single(item => item.Name == "LanguagePatchDrafts");
+        Wait(main, () => drafts.IsEnabled && drafts.Items.Count == 1);
+        Check(Equals(((MenuItem)drafts.Items[0]!).Header, "settings.json"), "Mod menu did not expose created patch drafts");
+        Wait(main, () => main.GetVisualDescendants().OfType<Button>().Any(button => button.Name == "DocumentTab" && Equals(ToolTip.GetTip(button), "settings.json")));
+        var restoredRoot = Path.Combine(root, "restored");
+        Directory.CreateDirectory(restoredRoot);
+        using var sourceWorkspace = new GameWorkspace(Fixture(restoredRoot), restoredRoot);
+        var restoredScript = (TextDocument)sourceWorkspace.OpenAsset("fixture.lua");
+        restoredScript.Text = "-- EastwardModTool.LanguagePatch.v1\nreturn true";
+        var projectPath = Path.Combine(root, "language-ui.ewproj");
+        WorkspaceProject.Save(sourceWorkspace, projectPath);
+        var restoredWorkspace = WorkspaceProject.Open(projectPath);
+        typeof(MainWindow).GetMethod("SetWorkspace", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!.Invoke(main, [restoredWorkspace]);
+        Wait(main, () => drafts.IsEnabled && drafts.Items.Count == 1);
+        Check(Equals(((MenuItem)drafts.Items[0]!).Header, "fixture.lua"), "Reopening a project must restore language patch draft navigation");
+        ((MenuItem)drafts.Items[0]!).RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(MenuItem.ClickEvent));
+        Wait(main, () => main.GetVisualDescendants().OfType<Button>().Any(button => button.Name == "DocumentTab" && Equals(ToolTip.GetTip(button), "fixture.lua")));
+        main.Close();
+        Console.WriteLine("PASS language patch input, local/shared image mapping, narrow scroll/fixed buttons, error recovery, Mod menu dialog, editing draft tabs and reopened project navigation");
+    }
+    finally { Directory.Delete(root, true); }
 }
 
 static void LanguageImages(string directory, string output)
