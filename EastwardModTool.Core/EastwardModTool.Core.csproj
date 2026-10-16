@@ -3,11 +3,13 @@
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <EastwardModLoaderProject Condition="'$(EastwardModLoaderProject)' == ''">$(MSBuildProjectDirectory)/../EastwardModLoader/Core/EastwardModLoader.Core.csproj</EastwardModLoaderProject>
   </PropertyGroup>
   <ItemGroup>
     <EmbeddedResource Include="Localization/LanguagePatchRuntime.lua" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../EastwardLib/EastwardLib.csproj" />
+    <ProjectReference Include="$(EastwardModLoaderProject)" />
   </ItemGroup>
 </Project>

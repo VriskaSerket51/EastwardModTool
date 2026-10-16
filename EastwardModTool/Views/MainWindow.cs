@@ -13,6 +13,7 @@ using EastwardLib.MetaData;
 using EastwardLib.Modding;
 using EastwardModTool.Core;
 using EastwardModTool.Core.Documents;
+using EastwardModTool.Editing;
 
 namespace EastwardModTool.Views;
 
@@ -32,13 +33,15 @@ public sealed class MainWindow : Window
     private readonly MenuItem _pinned = new() { Header = "Pinned assets" };
     private readonly MenuItem _languagePatchDrafts = new() { Name = "LanguagePatchDrafts", Header = "Language patch drafts", IsEnabled = false };
     private readonly string? _decompilerPath;
+    private readonly Func<IModManagerClient> _modManagerClient;
     private GameWorkspace? _workspace;
     private AssetDocument? _document;
     private bool _busy;
     private bool _closing;
 
-    public MainWindow(string[] args)
+    public MainWindow(string[] args, Func<IModManagerClient>? modManagerClient = null)
     {
+        _modManagerClient = modManagerClient ?? (() => new LoaderModManagerClient());
         Title = "EastwardModTool";
         Width = 1400;
         Height = 860;
@@ -163,6 +166,8 @@ public sealed class MainWindow : Window
             Header = "_Mod",
             Items =
         {
+            Command("Manage mods…", ManageMods, Workspace, name: "ManageModsMenu"),
+            new Separator(),
             Command("Create language patch…", CreateLanguagePatch, Workspace, name: "CreateLanguagePatchMenu"),
             _languagePatchDrafts,
             new Separator(),
@@ -551,6 +556,17 @@ public sealed class MainWindow : Window
         var output = path;
         await Task.Run(() => _document.ExportSource(output));
         _status.Text = "Exported " + output;
+    }
+
+    private async Task ManageMods()
+    {
+        if (_workspace == null)
+        {
+            return;
+        }
+
+        await new ModManagerView(_workspace.GameDirectory, _modManagerClient()).ShowDialog(this);
+        _status.Text = "Mod management closed · project editing drafts are unchanged";
     }
 
     private async Task CreateLanguagePatch()

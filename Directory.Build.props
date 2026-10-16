@@ -1,0 +1,6 @@
+<Project>
+  <PropertyGroup>
+    <EastwardLibProject Condition="'$(EastwardLibProject)' == ''">$(MSBuildThisFileDirectory)EastwardLib/EastwardLib.csproj</EastwardLibProject>
+    <EastwardModLoaderProject Condition="'$(EastwardModLoaderProject)' == ''">$(MSBuildThisFileDirectory)EastwardModLoader/Core/EastwardModLoader.Core.csproj</EastwardModLoaderProject>
+  </PropertyGroup>
+</Project>

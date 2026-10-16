@@ -157,10 +157,61 @@ local function patchImages()
     state.imageHook = true
 end
 
+local function patchLocaleFilters()
+    if state.localeFilterHook then return end
+    assert(mock.LocaleVisibility and mock.LocaleVisibility.update and mock.LocaleConditionalGroup
+        and mock.LocaleConditionalGroup.__accept and mock.LocaleConditionalGroup.updateVisible,
+        'Language fallback requires LocaleVisibility and LocaleConditionalGroup')
+    state.localeVisibility = setmetatable({}, { __mode = 'k' })
+    local function contains(list, value)
+        for _, item in ipairs(list or {}) do if item == value then return true end end
+        return false
+    end
+    local function fallback(data)
+        local code = mock.getActiveLocale()
+        local options = state.languages[code]
+        local accept, exclude = data.accept, data.excluede
+        if not options or contains(accept, code) or contains(exclude, code) then return accept, exclude end
+        local accepted, excluded = {}, {}
+        for _, item in ipairs(accept or {}) do accepted[#accepted + 1] = item end
+        for _, item in ipairs(exclude or {}) do excluded[#excluded + 1] = item end
+        if contains(accept, options.baseLanguage) then accepted[#accepted + 1] = code end
+        if contains(exclude, options.baseLanguage) then excluded[#excluded + 1] = code end
+        return accepted, excluded
+    end
+    local function wrap(class, method, tracked)
+        local original = class[method]
+        class[method] = function(self, ...)
+            if tracked then state.localeVisibility[self] = true end
+            local accept, exclude = self.accept, self.excluede
+            self.accept, self.excluede = fallback(self)
+            local result = { pcall(original, self, ...) }
+            self.accept, self.excluede = accept, exclude
+            if not result[1] then error(result[2], 0) end
+            return unpack(result, 2)
+        end
+    end
+    wrap(mock.LocaleVisibility, 'update', true)
+    wrap(mock.LocaleConditionalGroup, 'updateVisible', false)
+    local accept = mock.LocaleConditionalGroup.__accept
+    mock.LocaleConditionalGroup.__accept = function(data, ...)
+        local allowed, excluded = fallback(data)
+        return accept(setmetatable({accept=allowed,excluede=excluded}, {__index=data}), ...)
+    end
+    mock.connectGlobalSignalFunc('locale.change', function()
+        for component in pairs(state.localeVisibility) do
+            local ok, reason = pcall(component.update, component)
+            if not ok then print('[LanguagePatch] ' .. tostring(reason)) end
+        end
+    end)
+    state.localeFilterHook = true
+end
+
 local function patchManager(class)
     assert(class and class.initLocale and class.setLocale, 'EWGlobalManager locale methods missing')
     patchFonts()
     patchImages()
+    patchLocaleFilters()
     if class.__ewLanguageManager then return end
     local init = class.initLocale
     class.initLocale = function(self, ...)

@@ -29,6 +29,17 @@ function switch(code)
     locale = code
     for _, callback in ipairs(callbacks['locale.change'] or {}) do callback(code) end
 end
+local function filter(data)
+    local allow = false
+    for _, value in ipairs(data.accept) do if value=='all' or value==locale then allow=true end end
+    if not allow and next(data.excluede) then
+        allow=true;for _,value in ipairs(data.excluede) do if value==locale then allow=false end end
+    end
+    return allow
+end
+mock.LocaleVisibility={update=function(self)self.visible=filter(self)end}
+mock.LocaleConditionalGroup={updateVisible=function(self)self.visible=filter(self)end,
+    __accept=function(data)if data.mode=='show' then return true end;return filter(data)end}
 mock.TextStyle = setmetatable({update = function(self)
     if self.fail then error('font failure') end
     self.renderedFont = self.font
@@ -114,6 +125,17 @@ function verify(runtime)
     for _, kind in ipairs({'manager','settings','farm-settings','initial','dialog','chapter','title'}) do runtime.apply(kind,options,_G) end
     EWGlobalManager:initLocale()
     assert(registered.ko and locale=='ko')
+    local accepts, excludes = {'en'}, {}
+    local visibility=setmetatable({accept=accepts,excluede=excludes}, {__index=mock.LocaleVisibility})
+    visibility:update();assert(visibility.visible and visibility.accept==accepts and visibility.excluede==excludes)
+    assert(mock.LocaleConditionalGroup.__accept({accept={'en'},excluede={},mode='load'}))
+    assert(not mock.LocaleConditionalGroup.__accept({accept={'ja'},excluede={},mode='load'}))
+    assert(mock.LocaleConditionalGroup.__accept({accept={'ja'},excluede={},mode='show'}))
+    assert(not mock.LocaleConditionalGroup.__accept({accept={},excluede={'en'},mode='load_and_show'}))
+    assert(not mock.LocaleConditionalGroup.__accept({accept={},excluede={'ko'},mode='load'}))
+    assert(mock.LocaleConditionalGroup.__accept({accept={'ko'},excluede={'en'},mode='load'}))
+    assert(mock.LocaleConditionalGroup.__accept({accept={'all'},excluede={'en'},mode='load'}))
+    switch('ja');assert(not visibility.visible);switch('ko');assert(visibility.visible)
     local font = setmetatable({font='font/base.ttf'}, {__index=mock.TextStyle})
     local unrelated = setmetatable({font='font/unrelated.ttf'}, {__index=mock.TextStyle})
     font:update(); unrelated:update()

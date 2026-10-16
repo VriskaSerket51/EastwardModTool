@@ -1,3 +1,6 @@
 [submodule "EastwardLib"]
 	path = EastwardLib
 	url = https://github.com/VriskaSerket51/EastwardLib
+[submodule "EastwardModLoader"]
+	path = EastwardModLoader
+	url = https://github.com/VriskaSerket51/EastwardModLoader.git

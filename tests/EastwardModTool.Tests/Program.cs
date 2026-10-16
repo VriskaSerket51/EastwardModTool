@@ -18,6 +18,14 @@ using EastwardModTool.Core.Navigation;
 using EastwardModTool.Core.Documents;
 using EastwardModTool.Views;
 
+if (args.Length >= 2 && args[0] == "--mod-manager-ui")
+{
+    AppBuilder.Configure<App>().UseSkia().UseHeadless(new AvaloniaHeadlessPlatformOptions { UseHeadlessDrawing = false }).SetupWithoutStarting();
+    Directory.CreateDirectory(args[1]);
+    ModManagerUI(args[1]);
+    return;
+}
+
 if (args.Length >= 2 && args[0] == "--language-patch-ui")
 {
     AppBuilder.Configure<App>().UseSkia().UseHeadless(new AvaloniaHeadlessPlatformOptions { UseHeadlessDrawing = false }).SetupWithoutStarting();
@@ -957,6 +965,95 @@ static void Navigation()
     Check(browser.Roots.Single(node => node.Name == "empty").IsExpanded, "View switch lost directory expansion state");
     Check(index["actors/hero/readme.txt"].FilePath == "game/asset/actors/hero/readme.txt", "Navigation modified metadata paths");
     Console.WriteLine("PASS logical Gii paths, declared virtual parents, type groups, folder expansion and stable filtered selection");
+}
+
+static void ModManagerUI(string output)
+{
+    var service = new FakeModManagerClient();
+    var directory = Path.Combine(Path.GetTempPath(), "Eastward-mod-ui-fixture");
+    service.NormalizedDirectory = Path.Combine(directory, "content", "game");
+    var view = new ModManagerView(directory, service);
+    view.Show();
+    Button Button(string name) => view.GetVisualDescendants().OfType<Button>().Single(button => button.Name == name);
+    void Click(string name) => Button(name).RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Avalonia.Controls.Button.ClickEvent));
+    CheckBox Toggle(string name) => view.GetVisualDescendants().OfType<CheckBox>().Single(check => check.Content is TextBlock label && label.Text == name);
+    Wait(view, () => Button("InstallLoader").IsEnabled);
+    Check(service.InstallCalls == 0 && !service.Installed && view.GetVisualDescendants().OfType<TextBox>().Single(input => input.Name == "ModInstallation").Text == service.NormalizedDirectory, "Opening mod manager installed automatically or did not display the normalized installation");
+    Click("InstallLoader");
+    Wait(view, () => Button("UninstallLoader").IsEnabled && service.InstallCalls == 1);
+    Toggle("Fixture resource mod").IsChecked = false;
+    Toggle("Conflicting resource mod").IsChecked = true;
+    Check(!Button("ApplyModActivation").IsEnabled && service.ApplyCalls == 0, "Conflicting enabled mod was allowed or toggles wrote immediately");
+    Toggle("Conflicting resource mod").IsChecked = false;
+    Check(Button("ApplyModActivation").IsEnabled, "Disabling conflicting mod did not unblock activation");
+    service.FailApply = true;
+    Click("ApplyModActivation");
+    Wait(view, () => view.GetVisualDescendants().OfType<TextBlock>().Any(block => block.Name == "ModManagerStatus" && block.Text == "Fixture managed-file validation failed"));
+    Check(!Toggle("Fixture resource mod").IsChecked!.Value && service.ApplyCalls == 0, "Failed validation lost pending toggles or wrote activation");
+    service.FailApply = false;
+    Click("ApplyModActivation");
+    Wait(view, () => service.ApplyCalls == 1 && Button("AddModFile").IsEnabled && !Button("ApplyModActivation").IsEnabled);
+    var added = view.AddSource("fixture-mod.lua");
+    Wait(view, () => added.IsCompleted && view.GetVisualDescendants().OfType<CheckBox>().Count() == 3);
+    Check(service.AddedSource == "fixture-mod.lua", "Mod manager did not forward selected Lua file");
+    view.GetVisualDescendants().OfType<Button>().Single(button => button.Name == "RemoveMod" && Equals(ToolTip.GetTip(button), "lua")).RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Avalonia.Controls.Button.ClickEvent));
+    Wait(view, () => service.RemovedId == "lua" && view.GetVisualDescendants().OfType<CheckBox>().Count() == 2);
+    view.Width = 460;
+    view.Height = 470;
+    Wait(view, () => view.GetVisualDescendants().OfType<ScrollViewer>().Any(scroll => scroll.Name == "ModManagerScroll" && scroll.Extent.Height > scroll.Viewport.Height));
+    var apply = Button("ApplyModActivation");
+    var location = apply.TranslatePoint(default, view);
+    Check(location != null && location.Value.Y + apply.Bounds.Height <= view.Bounds.Height, "Mod manager apply button was clipped");
+    using (var image = view.CaptureRenderedFrame())
+    {
+        image!.Save(Path.Combine(output, "mod-manager-narrow.png"), new Avalonia.Media.Imaging.PngBitmapEncoderOptions());
+    }
+
+    service.FileConflicts = ["script/lib.lua changed outside the loader"];
+    Click("RefreshMods");
+    Wait(view, () => view.GetVisualDescendants().OfType<TextBlock>().Any(block => block.Name == "ModManagerStatus" && block.Text!.StartsWith("Conflicts:")));
+    Check(!Button("InstallLoader").IsEnabled && Button("UninstallLoader").IsEnabled && !Button("ApplyModActivation").IsEnabled, "Conflicts blocked recovery or enabled an unsafe install");
+    Click("UninstallLoader");
+    Wait(view, () => view.GetVisualDescendants().OfType<TextBlock>().Any(block => block.Name == "ModManagerStatus" && block.Text == "Fixture bootstrap checksum mismatch"));
+    Check(service.UninstallCalls == 0 && service.Installed, "Uninstall checksum validation changed fixture state");
+    service.FileConflicts = [];
+    Click("RefreshMods");
+    Wait(view, () => Button("UninstallLoader").IsEnabled);
+    Click("UninstallLoader");
+    Wait(view, () => service.UninstallCalls == 1 && Button("InstallLoader").IsEnabled);
+    Check(service.LastDirectory == Path.GetFullPath(service.NormalizedDirectory) && service.ApplyCalls == 1, "Mod manager used a different installation target or performed extra writes");
+    view.Close();
+    var root = Path.Combine(Path.GetTempPath(), "Eastward-mod-menu-" + Guid.NewGuid());
+    Directory.CreateDirectory(root);
+    try
+    {
+        Fixture(root);
+        var menuService = new FakeModManagerClient();
+        var main = new MainWindow(["--game", root], () => menuService);
+        main.Show();
+        var modMenu = main.GetVisualDescendants().OfType<Menu>().Single().Items.OfType<MenuItem>().Single(item => Equals(item.Header, "_Mod"));
+        var command = modMenu.Items.OfType<MenuItem>().Single(item => item.Name == "ManageModsMenu");
+        Wait(main, () => command.IsEnabled);
+        command.RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(MenuItem.ClickEvent));
+        Wait(main, () => main.OwnedWindows.OfType<ModManagerView>().Any());
+        var dialog = main.OwnedWindows.OfType<ModManagerView>().Single();
+        Wait(dialog, () => dialog.GetVisualDescendants().OfType<Button>().Any(button => button.Name == "InstallLoader" && button.IsEnabled));
+        Check(menuService.InstallCalls == 0 && menuService.LastDirectory == Path.GetFullPath(root), "Mod menu manager inspected a different target or installed automatically");
+        dialog.Close();
+        Wait(main, () => command.IsEnabled);
+        main.Close();
+    }
+    finally
+    {
+        var temp = Path.GetFullPath(Path.GetTempPath());
+        if (!Path.GetFullPath(root).StartsWith(temp, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException("Fixture path left the temporary directory");
+        }
+
+        Directory.Delete(root, true);
+    }
+    Console.WriteLine("PASS mod manager read-only opening, install/update, pending activation, conflicts, failed validation recovery, Lua import, narrow layout and uninstall through fixture client; real game was not changed");
 }
 
 static void LanguagePatchUI(string output)

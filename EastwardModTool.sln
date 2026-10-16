@@ -1,4 +1,4 @@
-﻿
+
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.0.31903.59
@@ -14,6 +14,10 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EastwardModTool.Tests", "tests\EastwardModTool.Tests\EastwardModTool.Tests.csproj", "{86D983EB-CC4C-42F9-9344-D91CF5BE77AF}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EastwardModTool.LanguageTests", "tests\EastwardModTool.LanguageTests\EastwardModTool.LanguageTests.csproj", "{2B072476-7E74-4F27-93AC-4D75B47FDACC}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Dependencies", "Dependencies", "{609F40C5-C560-40E6-76C7-691311A42DF0}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EastwardModLoader.Core", "EastwardModLoader\Core\EastwardModLoader.Core.csproj", "{05D44E85-01A8-468F-AD2E-0166707128D2}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -85,6 +89,18 @@ Global
 		{2B072476-7E74-4F27-93AC-4D75B47FDACC}.Release|x64.Build.0 = Release|Any CPU
 		{2B072476-7E74-4F27-93AC-4D75B47FDACC}.Release|x86.ActiveCfg = Release|Any CPU
 		{2B072476-7E74-4F27-93AC-4D75B47FDACC}.Release|x86.Build.0 = Release|Any CPU
+		{05D44E85-01A8-468F-AD2E-0166707128D2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{05D44E85-01A8-468F-AD2E-0166707128D2}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{05D44E85-01A8-468F-AD2E-0166707128D2}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{05D44E85-01A8-468F-AD2E-0166707128D2}.Debug|x64.Build.0 = Debug|Any CPU
+		{05D44E85-01A8-468F-AD2E-0166707128D2}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{05D44E85-01A8-468F-AD2E-0166707128D2}.Debug|x86.Build.0 = Debug|Any CPU
+		{05D44E85-01A8-468F-AD2E-0166707128D2}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{05D44E85-01A8-468F-AD2E-0166707128D2}.Release|Any CPU.Build.0 = Release|Any CPU
+		{05D44E85-01A8-468F-AD2E-0166707128D2}.Release|x64.ActiveCfg = Release|Any CPU
+		{05D44E85-01A8-468F-AD2E-0166707128D2}.Release|x64.Build.0 = Release|Any CPU
+		{05D44E85-01A8-468F-AD2E-0166707128D2}.Release|x86.ActiveCfg = Release|Any CPU
+		{05D44E85-01A8-468F-AD2E-0166707128D2}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -92,5 +108,6 @@ Global
 	GlobalSection(NestedProjects) = preSolution
 		{86D983EB-CC4C-42F9-9344-D91CF5BE77AF} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 		{2B072476-7E74-4F27-93AC-4D75B47FDACC} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
+		{05D44E85-01A8-468F-AD2E-0166707128D2} = {609F40C5-C560-40E6-76C7-691311A42DF0}
 	EndGlobalSection
 EndGlobal
