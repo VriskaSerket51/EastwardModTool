@@ -163,15 +163,63 @@ local function patchLocaleFilters()
         and mock.LocaleConditionalGroup.__accept and mock.LocaleConditionalGroup.updateVisible,
         'Language fallback requires LocaleVisibility and LocaleConditionalGroup')
     state.localeVisibility = setmetatable({}, { __mode = 'k' })
+    local alternatives = setmetatable({}, { __mode = 'k' })
     local function contains(list, value)
         for _, item in ipairs(list or {}) do if item == value then return true end end
         return false
+    end
+    -- Language variants share a parent in scene/proto data. Keep that context
+    -- while conditions are evaluated, before load-only variants are discarded.
+    local function collectAlternatives(data)
+        local function visit(entities)
+            local codes, filters = {}, {}
+            local function add(id)
+                local object = data.map[id]
+                if object and (object.model == 'mock.LocaleConditionalGroup' or object.model == 'mock.LocaleVisibility') then
+                    local body = object.body
+                    filters[#filters + 1] = body
+                    for _, code in ipairs(body.accept or {}) do
+                        if code ~= 'all' then codes[code] = true end
+                    end
+                end
+            end
+            for _, entity in ipairs(entities or {}) do
+                add(entity.id)
+                for _, id in ipairs(entity.components or {}) do add(id) end
+                visit(entity.children)
+            end
+            for _, body in ipairs(filters) do alternatives[body] = codes end
+        end
+        visit(data.entities)
+    end
+    if mock.SceneDeserializer then
+        local calculate = mock.SceneDeserializer._calcConditionals
+        local prepare = mock.SceneDeserializer._prepareEntitiesObjMap
+        assert(calculate and prepare, 'Language fallback requires scene conditional deserialization')
+        mock.SceneDeserializer._calcConditionals = function(self, data, ...)
+            collectAlternatives(data)
+            return calculate(self, data, ...)
+        end
+        mock.SceneDeserializer._prepareEntitiesObjMap = function(self, data, ...)
+            local objects, ignored = prepare(self, data, ...)
+            for id, object in pairs(data.map) do
+                local entry = objects[id]
+                if entry and alternatives[object.body] then alternatives[entry[1]] = alternatives[object.body] end
+            end
+            return objects, ignored
+        end
     end
     local function fallback(data)
         local code = mock.getActiveLocale()
         local options = state.languages[code]
         local accept, exclude = data.accept, data.excluede
         if not options or contains(accept, code) or contains(exclude, code) then return accept, exclude end
+        local variants = alternatives[data]
+        if variants and variants[code] and not contains(accept, 'all') then
+            local baseAccepted = contains(accept, options.baseLanguage)
+                or (not next(accept or {}) and next(exclude or {}) and not contains(exclude, options.baseLanguage))
+            if baseAccepted then return {}, { code } end
+        end
         local accepted, excluded = {}, {}
         for _, item in ipairs(accept or {}) do accepted[#accepted + 1] = item end
         for _, item in ipairs(exclude or {}) do excluded[#excluded + 1] = item end

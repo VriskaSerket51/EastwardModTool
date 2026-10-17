@@ -40,6 +40,26 @@ end
 mock.LocaleVisibility={update=function(self)self.visible=filter(self)end}
 mock.LocaleConditionalGroup={updateVisible=function(self)self.visible=filter(self)end,
     __accept=function(data)if data.mode=='show' then return true end;return filter(data)end}
+mock.SceneDeserializer = {
+    _calcConditionals=function(self,data)
+        local ignored={}
+        for id,object in pairs(data.map) do
+            if object.model=='mock.LocaleConditionalGroup' then
+                ignored[id]=not mock.LocaleConditionalGroup.__accept(object.body)
+            end
+        end
+        return ignored
+    end,
+    _prepareEntitiesObjMap=function(self,data)
+        local ignored=self:_calcConditionals(data)
+        local objects={}
+        for id,object in pairs(data.map) do
+            local class=object.model=='mock.LocaleVisibility' and mock.LocaleVisibility or mock.LocaleConditionalGroup
+            objects[id]={setmetatable({accept=object.body.accept,excluede=object.body.excluede,mode=object.body.mode},{__index=class})}
+        end
+        return objects,ignored
+    end
+}
 mock.TextStyle = setmetatable({update = function(self)
     if self.fail then error('font failure') end
     self.renderedFont = self.font
@@ -136,6 +156,39 @@ function verify(runtime)
     assert(mock.LocaleConditionalGroup.__accept({accept={'ko'},excluede={'en'},mode='load'}))
     assert(mock.LocaleConditionalGroup.__accept({accept={'all'},excluede={'en'},mode='load'}))
     switch('ja');assert(not visibility.visible);switch('ko');assert(visibility.visible)
+    -- Explicit translations win over fallback only within their sibling variants.
+    local function group(accept,exclude,mode)
+        return {model='mock.LocaleConditionalGroup',body={accept=accept,excluede=exclude or {},mode=mode or 'show'}}
+    end
+    local data={map={en=group({'en'}),ko=group({'ko'}),universal=group({'all'}),
+        default=group({}, {'ja'}),other=group({'en'}),
+        loadEn=group({'en'}, {}, 'load'),loadKo=group({'ko'}, {}, 'load'),
+        componentEn={model='mock.LocaleVisibility',body={accept={'en'},excluede={}}},
+        componentKo={model='mock.LocaleVisibility',body={accept={'ko'},excluede={}}}},
+        entities={{id='parent',children={{id='en'},{id='ko'},{id='universal'},{id='default'}}},
+            {id='otherParent',children={{id='other'}}},
+            {id='loadParent',children={{id='loadEn'},{id='loadKo'}}},
+            {id='componentParent',children={{id='widgetEn',components={'componentEn'}},
+                {id='widgetKo',components={'componentKo'}}}}}}
+    local deserializer=setmetatable({}, {__index=mock.SceneDeserializer})
+    local objects,ignored=deserializer:_prepareEntitiesObjMap(data)
+    assert(ignored.loadEn and not ignored.loadKo)
+    assert(not ignored.en and not ignored.ko) -- show-only groups still load
+    local function update()
+        for id,entry in pairs(objects) do
+            if data.map[id].model=='mock.LocaleVisibility' then entry[1]:update()
+            else entry[1]:updateVisible() end
+        end
+    end
+    update()
+    assert(not objects.en[1].visible and objects.ko[1].visible and objects.universal[1].visible)
+    assert(not objects.default[1].visible and objects.other[1].visible)
+    assert(not objects.componentEn[1].visible and objects.componentKo[1].visible)
+    assert(data.map.en.body.accept[1]=='en' and #data.map.en.body.excluede==0)
+    switch('en');update()
+    assert(objects.en[1].visible and not objects.ko[1].visible and objects.default[1].visible)
+    switch('ko');update()
+    assert(not objects.en[1].visible and objects.ko[1].visible)
     local font = setmetatable({font='font/base.ttf'}, {__index=mock.TextStyle})
     local unrelated = setmetatable({font='font/unrelated.ttf'}, {__index=mock.TextStyle})
     font:update(); unrelated:update()
