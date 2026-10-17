@@ -1,0 +1,283 @@
+[
+  {
+    "package": "Avalonia/12.1.4",
+    "license": "MIT",
+    "source": "https://github.com/AvaloniaUI/Avalonia/",
+    "notices": [
+      "Avalonia-LICENSE.txt"
+    ]
+  },
+  {
+    "package": "Avalonia.Angle.Windows.Natives/2.1.27548.20260419",
+    "license": "LICENSE",
+    "source": "https://github.com/AvaloniaUI/angle/",
+    "notices": [
+      "Avalonia.Angle.Windows.Natives-LICENSE.txt"
+    ]
+  },
+  {
+    "package": "Avalonia.AvaloniaEdit/12.0.0",
+    "license": "MIT",
+    "source": "https://github.com/AvaloniaUI/AvaloniaEdit/",
+    "notices": [
+      "Avalonia.AvaloniaEdit-LICENSE.txt"
+    ]
+  },
+  {
+    "package": "Avalonia.BuildServices/11.3.2",
+    "license": "MIT",
+    "source": "https://github.com/AvaloniaUI/Avalonia.BuildServices",
+    "notices": [
+      "Avalonia.BuildServices-LICENSE.txt"
+    ]
+  },
+  {
+    "package": "Avalonia.Desktop/12.1.4",
+    "license": "MIT",
+    "source": "https://github.com/AvaloniaUI/Avalonia/",
+    "notices": [
+      "Avalonia-LICENSE.txt"
+    ]
+  },
+  {
+    "package": "Avalonia.FreeDesktop/12.1.4",
+    "license": "MIT",
+    "source": "https://github.com/AvaloniaUI/Avalonia/",
+    "notices": [
+      "Avalonia-LICENSE.txt"
+    ]
+  },
+  {
+    "package": "Avalonia.FreeDesktop.AtSpi/12.1.4",
+    "license": "MIT",
+    "source": "https://github.com/AvaloniaUI/Avalonia/",
+    "notices": [
+      "Avalonia-LICENSE.txt"
+    ]
+  },
+  {
+    "package": "Avalonia.HarfBuzz/12.1.4",
+    "license": "MIT",
+    "source": "https://github.com/AvaloniaUI/Avalonia/",
+    "notices": [
+      "Avalonia-LICENSE.txt"
+    ]
+  },
+  {
+    "package": "Avalonia.Native/12.1.4",
+    "license": "MIT",
+    "source": "https://github.com/AvaloniaUI/Avalonia/",
+    "notices": [
+      "Avalonia-LICENSE.txt"
+    ]
+  },
+  {
+    "package": "Avalonia.Remote.Protocol/12.1.4",
+    "license": "MIT",
+    "source": "https://github.com/AvaloniaUI/Avalonia/",
+    "notices": [
+      "Avalonia-LICENSE.txt"
+    ]
+  },
+  {
+    "package": "Avalonia.Skia/12.1.4",
+    "license": "MIT",
+    "source": "https://github.com/AvaloniaUI/Avalonia/",
+    "notices": [
+      "Avalonia-LICENSE.txt"
+    ]
+  },
+  {
+    "package": "Avalonia.Themes.Fluent/12.1.4",
+    "license": "MIT",
+    "source": "https://github.com/AvaloniaUI/Avalonia/",
+    "notices": [
+      "Avalonia-LICENSE.txt"
+    ]
+  },
+  {
+    "package": "Avalonia.Win32/12.1.4",
+    "license": "MIT",
+    "source": "https://github.com/AvaloniaUI/Avalonia/",
+    "notices": [
+      "Avalonia-LICENSE.txt"
+    ]
+  },
+  {
+    "package": "Avalonia.X11/12.1.4",
+    "license": "MIT",
+    "source": "https://github.com/AvaloniaUI/Avalonia/",
+    "notices": [
+      "Avalonia-LICENSE.txt"
+    ]
+  },
+  {
+    "package": "ExcelDataReader/3.9.0",
+    "license": "MIT",
+    "source": "https://github.com/ExcelDataReader/ExcelDataReader",
+    "notices": [
+      "ExcelDataReader-LICENSE.txt"
+    ]
+  },
+  {
+    "package": "HarfBuzzSharp/8.3.1.3",
+    "license": "MIT",
+    "source": "https://go.microsoft.com/fwlink/?linkid=868515",
+    "notices": [
+      "HarfBuzzSharp-LICENSE.txt"
+    ]
+  },
+  {
+    "package": "HarfBuzzSharp.NativeAssets.Linux/8.3.1.3",
+    "license": "MIT",
+    "source": "https://go.microsoft.com/fwlink/?linkid=868515",
+    "notices": [
+      "HarfBuzzSharp-LICENSE.txt",
+      "HarfBuzzSharp.NativeAssets.Linux-THIRD-PARTY-NOTICES.txt"
+    ]
+  },
+  {
+    "package": "HarfBuzzSharp.NativeAssets.macOS/8.3.1.3",
+    "license": "MIT",
+    "source": "https://go.microsoft.com/fwlink/?linkid=868515",
+    "notices": [
+      "HarfBuzzSharp-LICENSE.txt",
+      "HarfBuzzSharp.NativeAssets.Linux-THIRD-PARTY-NOTICES.txt"
+    ]
+  },
+  {
+    "package": "HarfBuzzSharp.NativeAssets.WebAssembly/8.3.1.3",
+    "license": "MIT",
+    "source": "https://go.microsoft.com/fwlink/?linkid=868515",
+    "notices": [
+      "HarfBuzzSharp-LICENSE.txt",
+      "HarfBuzzSharp.NativeAssets.Linux-THIRD-PARTY-NOTICES.txt"
+    ]
+  },
+  {
+    "package": "HarfBuzzSharp.NativeAssets.Win32/8.3.1.3",
+    "license": "MIT",
+    "source": "https://go.microsoft.com/fwlink/?linkid=868515",
+    "notices": [
+      "HarfBuzzSharp-LICENSE.txt",
+      "HarfBuzzSharp.NativeAssets.Linux-THIRD-PARTY-NOTICES.txt"
+    ]
+  },
+  {
+    "package": "K4os.Compression.LZ4/1.3.8",
+    "license": "See upstream license",
+    "source": "https://github.com/MiloszKrajewski/K4os.Compression.LZ4",
+    "notices": [
+      "K4os.Compression.LZ4-LICENSE.txt"
+    ]
+  },
+  {
+    "package": "MessagePack/3.1.11",
+    "license": "MIT",
+    "source": "https://github.com/MessagePack-CSharp/MessagePack-CSharp",
+    "notices": [
+      "MessagePack-LICENSE.txt"
+    ]
+  },
+  {
+    "package": "MessagePack.Annotations/3.1.11",
+    "license": "MIT",
+    "source": "https://github.com/MessagePack-CSharp/MessagePack-CSharp",
+    "notices": [
+      "MessagePack-LICENSE.txt"
+    ]
+  },
+  {
+    "package": "MessagePackAnalyzer/3.1.11",
+    "license": "MIT",
+    "source": "https://github.com/MessagePack-CSharp/MessagePack-CSharp",
+    "notices": [
+      "MessagePack-LICENSE.txt"
+    ]
+  },
+  {
+    "package": "MicroCom.Runtime/0.11.6",
+    "license": "MIT",
+    "source": "https://github.com/kekekeks/MicroCom",
+    "notices": [
+      "MicroCom.Runtime-LICENSE.txt"
+    ]
+  },
+  {
+    "package": "Microsoft.NET.StringTools/17.11.4",
+    "license": "MIT",
+    "source": "https://github.com/dotnet/msbuild",
+    "notices": [
+      "Microsoft.NET.StringTools-THIRDPARTYNOTICES.txt",
+      "Microsoft.NET.StringTools-LICENSE.txt"
+    ]
+  },
+  {
+    "package": "SkiaSharp/3.119.4",
+    "license": "MIT",
+    "source": "https://go.microsoft.com/fwlink/?linkid=868515",
+    "notices": [
+      "HarfBuzzSharp-LICENSE.txt"
+    ]
+  },
+  {
+    "package": "SkiaSharp.NativeAssets.Linux/3.119.4",
+    "license": "MIT",
+    "source": "https://go.microsoft.com/fwlink/?linkid=868515",
+    "notices": [
+      "HarfBuzzSharp-LICENSE.txt",
+      "HarfBuzzSharp.NativeAssets.Linux-THIRD-PARTY-NOTICES.txt"
+    ]
+  },
+  {
+    "package": "SkiaSharp.NativeAssets.macOS/3.119.4",
+    "license": "MIT",
+    "source": "https://go.microsoft.com/fwlink/?linkid=868515",
+    "notices": [
+      "HarfBuzzSharp-LICENSE.txt",
+      "HarfBuzzSharp.NativeAssets.Linux-THIRD-PARTY-NOTICES.txt"
+    ]
+  },
+  {
+    "package": "SkiaSharp.NativeAssets.WebAssembly/3.119.4",
+    "license": "MIT",
+    "source": "https://go.microsoft.com/fwlink/?linkid=868515",
+    "notices": [
+      "HarfBuzzSharp-LICENSE.txt",
+      "HarfBuzzSharp.NativeAssets.Linux-THIRD-PARTY-NOTICES.txt"
+    ]
+  },
+  {
+    "package": "SkiaSharp.NativeAssets.Win32/3.119.4",
+    "license": "MIT",
+    "source": "https://go.microsoft.com/fwlink/?linkid=868515",
+    "notices": [
+      "HarfBuzzSharp-LICENSE.txt",
+      "HarfBuzzSharp.NativeAssets.Linux-THIRD-PARTY-NOTICES.txt"
+    ]
+  },
+  {
+    "package": "StbImageSharp/2.30.16",
+    "license": "Unlicense OR MIT",
+    "source": "https://github.com/StbSharp/StbImageSharp",
+    "notices": [
+      "StbImageSharp-LICENSE.txt"
+    ]
+  },
+  {
+    "package": "Tmds.DBus.Protocol/0.94.1",
+    "license": "MIT",
+    "source": "https://github.com/tmds/Tmds.DBus.git",
+    "notices": [
+      "Tmds.DBus.Protocol-LICENSE.txt"
+    ]
+  },
+  {
+    "package": "ZstdSharp.Port/0.8.8",
+    "license": "MIT",
+    "source": "https://github.com/oleg-st/ZstdSharp.git",
+    "notices": [
+      "ZstdSharp.Port-LICENSE.txt"
+    ]
+  }
+]

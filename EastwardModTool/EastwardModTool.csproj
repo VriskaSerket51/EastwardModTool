@@ -15,4 +15,5 @@
     <EmbeddedResource Include="Editing/Syntax/*.xshd" />
   </ItemGroup>
   <Import Project="../Native/NativeDecompiler.targets" />
+  <Import Project="../Licenses.targets" />
 </Project>
