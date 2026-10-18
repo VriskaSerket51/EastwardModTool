@@ -79,6 +79,8 @@ jobs:
             bundle=publish/EastwardModTool.app
             mkdir -p "$bundle/Contents/MacOS"
             cp -a publish/app/. "$bundle/Contents/MacOS/"
+            mkdir -p "$bundle/Contents/Resources"
+            mv "$bundle/Contents/MacOS/licenses" "$bundle/Contents/Resources/licenses"
             /usr/libexec/PlistBuddy -c 'Add :CFBundleIdentifier string io.github.vriskaserket51.eastwardmodtool' "$bundle/Contents/Info.plist"
             /usr/libexec/PlistBuddy -c 'Add :CFBundleName string EastwardModTool' "$bundle/Contents/Info.plist"
             /usr/libexec/PlistBuddy -c 'Add :CFBundleExecutable string EastwardModTool' "$bundle/Contents/Info.plist"
@@ -100,3 +102,22 @@ jobs:
           if-no-files-found: error
       - name: Upload to existing release
         run: gh release upload "$RELEASE_TAG" artifacts/*.tar.gz --clobber
+
+  publish:
+    needs: build
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    env:
+      RELEASE_TAG: ${{ github.event.release.tag_name || inputs.tag }}
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - name: Publish complete release
+        shell: bash
+        run: |
+          version="${RELEASE_TAG#v}"
+          for suffix in win-x64.zip linux-x64.tar.gz linux-arm64.tar.gz osx-x64.tar.gz osx-arm64.tar.gz; do
+            gh release view "$RELEASE_TAG" --json assets --jq '.assets[].name' | grep -Fx "EastwardModTool-$version-$suffix"
+          done
+          gh release edit "$RELEASE_TAG" --draft=false --latest
