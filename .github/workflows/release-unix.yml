@@ -55,7 +55,7 @@ jobs:
       - name: Validate release
         run: |
           [[ "$RELEASE_TAG" =~ ^v?[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9.-]+)?$ ]]
-          gh release view "$RELEASE_TAG" --json isDraft --jq '.isDraft == false' | grep -qx true
+          gh release view "$RELEASE_TAG" --json tagName --jq .tagName | grep -Fx "$RELEASE_TAG"
           echo "VERSION=${RELEASE_TAG#v}" >> "$GITHUB_ENV"
       - name: Install Linux UI dependencies
         if: runner.os == 'Linux'
