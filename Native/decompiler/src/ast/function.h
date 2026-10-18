@@ -1,4 +1,6 @@
-struct Ast::Local {
+private:
+
+struct Local {
 	std::vector<std::string> names;
 	uint8_t baseSlot = 0;
 	uint32_t scopeBegin = INVALID_ID;
@@ -6,7 +8,7 @@ struct Ast::Local {
 	bool excludeBlock = false;
 };
 
-struct Ast::SlotScope {
+struct SlotScope {
 	SlotScope* slotScope = this;
 	std::vector<SlotScope**> mergedScopes;
 	std::string name;
@@ -15,7 +17,9 @@ struct Ast::SlotScope {
 	uint32_t usages = 0;
 };
 
-struct Ast::Function {
+public:
+
+struct Function {
 	struct Upvalue {
 		uint8_t slot = 0;
 		SlotScope** slotScope = nullptr;

@@ -3,3 +3,5 @@ Source: https://github.com/VriskaSerket51/node-luajit-decompiler
 Revision: 8ac67d02b22571a27fa72ba1898dcf0fc7ec6dce
 Only the C++ decompiler core is included. Node bindings are not built.
 See LICENSE for the MIT license and upstream copyright notices.
+
+Local changes: nested type declarations use standard C++ syntax and preserve their original access for GCC, Clang and MSVC builds.
