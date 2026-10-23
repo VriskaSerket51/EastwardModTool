@@ -2,7 +2,7 @@
 
 English | [한국어](README.ko.md)
 
-A tool for viewing and editing Eastward assets.
+An unofficial desktop tool for viewing and editing Eastward assets and creating mod packages.
 
 ## How to build
 
@@ -19,7 +19,7 @@ For an existing checkout, run `git submodule update --init --recursive`. Set the
 
 ## How to use
 
-Open the Eastward installation directory or `content/game`. DLC resources are loaded as well.
+Open the Eastward installation directory or `content/game`. If a `content_dlc` directory is found in the installation, its archives are loaded too.
 
 The asset list follows the Gii directory structure. Select **Asset types** to group assets by type instead.
 

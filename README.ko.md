@@ -2,7 +2,7 @@
 
 [English](README.md) | 한국어
 
-Eastward 에셋을 보고 수정하는 모드툴입니다.
+Eastward 에셋을 보고 수정하고 모드 패키지를 만드는 비공식 데스크톱 도구입니다.
 
 ## 빌드 방법
 
@@ -19,7 +19,7 @@ dotnet run --project EastwardModTool
 
 ## 사용 방법
 
-Eastward 설치 폴더 또는 `content/game`을 엽니다. DLC 리소스도 함께 읽습니다.
+Eastward 설치 폴더 또는 `content/game`을 엽니다. 설치 경로에서 `content_dlc` 폴더를 찾으면 그 안의 아카이브도 읽습니다.
 
 에셋 목록은 Gii 디렉터리 구조로 표시합니다. **Asset types**로 종류별 보기로 전환할 수 있습니다.
 
