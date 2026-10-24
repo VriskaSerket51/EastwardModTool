@@ -2,11 +2,35 @@
 
 English | [한국어](README.ko.md)
 
-An unofficial desktop tool for viewing and editing Eastward assets and creating mod packages.
+Unofficial desktop editor for Eastward assets and mods.
+
+## How to use
+
+1. Open the Eastward installation folder or `content/game`.
+2. Open and edit assets.
+3. Use `Save project` to save edits as an `.ewproject`.
+
+The default view follows Gii folders. `Asset types` groups assets by type.
+
+`Asset > Export source...` exports editable files. Use `Import file...` or `Import folder...` to import changes. Installed DLC archives are loaded when `content_dlc` is found.
+
+### Mod creation
+
+1. Use `Mod > Export mod...` to save changes as an `.ewmod`.
+2. Open `Manage mods...`, install the loader and add the mod.
+3. Enable it and select `Apply enabled mods`.
+
+To save `.g` archives instead, use `Build archives...`. Output goes to a separate folder.
+
+### Language patches
+
+Open `Mod > Create language patch...`. Enter the language ID, display name and base language, then select the JSON exported from [Eastward Translate](https://github.com/VriskaSerket51/eastward-kr). Add menus, images or fonts as needed.
+
+Select `Create editing drafts`, check the changes and export the mod. See the [language patch guide](https://github.com/VriskaSerket51/EastwardModLoader/blob/main/docs/language-patches.md).
 
 ## How to build
 
-Requires .NET 10, CMake 3.20 or newer and a C++20 compiler.
+.NET 10, CMake 3.20+ and a C++20 compiler required.
 
 ```sh
 git clone --recurse-submodules https://github.com/VriskaSerket51/EastwardModTool.git
@@ -15,49 +39,12 @@ dotnet build EastwardModTool -c Release
 dotnet run --project EastwardModTool
 ```
 
-For an existing checkout, run `git submodule update --init --recursive`. Set the CMake path with `-p:CMakeExecutable=/path/to/cmake` if needed.
+For an existing checkout, run `git submodule update --init --recursive`. Use `-p:CMakeExecutable=/path/to/cmake` if CMake is not on PATH.
 
-## How to use
-
-Open the Eastward installation directory or `content/game`. If a `content_dlc` directory is found in the installation, its archives are loaded too.
-
-The asset list follows the Gii directory structure. Select **Asset types** to group assets by type instead.
-
-Use **Asset > Export source...** to export sources and **Import file... / Import folder...** to import edited sources. **Global metadata** edits the asset, script and texture indexes.
-
-**Save project** saves your edits as an `.ewproject`. Drafts remain when editor tabs are closed; use **Reopen closed tab** to open them again.
-
-### Creating mods
-
-Use **Mod > Export mod...** to save changed resources in an `.ewmod`.
-
-In **Manage mods...**, install the loader, add the `.ewmod` and enable it.
-
-Use **Build archives...** to save `.g` archives. Output goes to a separate directory, preserving the originals.
-
-### Language patches
-
-In **Mod > Create language patch...**, enter the language ID, display name and base language, then choose the file downloaded with **Export JSON** in the translation editor. You can also select menus, images and fonts.
-
-Check the output from **Create editing drafts**, then export it as a mod. See the [language patch guide](https://github.com/VriskaSerket51/EastwardModLoader/blob/main/docs/language-patches.md) for details.
-
-## Asset previews
-
-| Asset | View |
-| --- | --- |
-| Code, text | Source editor |
-| Scenes, proto, serialized objects | Hierarchy, properties, object references |
-| Tables, locale packs | Sheets, messages and language comparisons |
-| Graphs, meshes | Node connections, wireframes |
-| Textures, decks, sprites | Images, geometry, animations |
-| Fonts, packages, binary files | Glyphs, file lists, hex view |
-
-## Other operating systems
-
-Builds support Windows, Linux and macOS. Build the native decompiler on the target OS as well.
+Build on the target OS: Windows, Linux or macOS. For example:
 
 ```sh
 dotnet publish EastwardModTool -c Release -r win-x64 --self-contained true -o ./publish/win-x64
 ```
 
-On Linux and macOS, build in that environment and use a runtime such as `linux-x64` or `osx-arm64`.
+Use `linux-x64` or `osx-arm64` for the corresponding target. The native decompiler must also be built for that OS.
