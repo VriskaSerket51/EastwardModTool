@@ -24,7 +24,7 @@ To save `.g` archives instead, use `Build archives...`. Output goes to a separat
 
 ### Language patches
 
-Open `Mod > Create language patch...`. Enter the language ID, display name and base language, then select the JSON exported from [Eastward Translate](https://github.com/VriskaSerket51/eastward-kr). Add menus, images or fonts as needed.
+Open `Mod > Create language patch...`. Enter the language ID, display name and base language, then select the JSON exported from [Eastward Translate](https://github.com/VriskaSerket51/eastward-translate). Add menus, images or fonts as needed.
 
 Select `Create editing drafts`, check the changes and export the mod. See the [language patch guide](https://github.com/VriskaSerket51/EastwardModLoader/blob/main/docs/language-patches.md).
 

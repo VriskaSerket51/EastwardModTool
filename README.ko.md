@@ -26,7 +26,7 @@ Eastward 에셋을 편집하고 모드를 만드는 비공식 데스크톱 도�
 ### 언어 패치
 
 `Mod > Create language patch...`에서 언어 ID, 표시 이름, 기준 언어를 입력합니다.
-[번역 웹](https://github.com/VriskaSerket51/eastward-kr)의 Export JSON 파일을 선택하고 필요한 메뉴, 이미지, 폰트를 추가할 수 있습니다.
+[번역 웹](https://github.com/VriskaSerket51/eastward-translate)의 Export JSON 파일을 선택하고 필요한 메뉴, 이미지, 폰트를 추가할 수 있습니다.
 
 `Create editing drafts`로 초안을 만든 뒤 변경 내용을 확인하고 모드로 내보냅니다.
 자세한 사용법은 [언어 패치 가이드](https://github.com/VriskaSerket51/EastwardModLoader/blob/main/docs/language-patches.ko.md)에 있습니다.
